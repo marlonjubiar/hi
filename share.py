@@ -72,6 +72,7 @@ from rich import print as printf
 from datetime import datetime
 import pytz
 from concurrent.futures import ThreadPoolExecutor
+import signal
 
 console = Console()
 
@@ -94,32 +95,11 @@ SUKSES, GAGAL, BLOCKED_COOKIES = [], [], []
 START_TIME = None
 END_TIME = None
 
-# Acquire Termux wake lock to prevent suspension
-def acquire_wakelock():
-    try:
-        import subprocess
-        # Try to acquire Termux wake lock
-        result = subprocess.run(['termux-wake-lock'], capture_output=True, text=True)
-        if result.returncode == 0:
-            printf(f"[bold bright_white]   ──>[bold green] WAKE LOCK ACQUIRED! Process won't stop.  ", end='\r')
-            time.sleep(1.5)
-            return True
-        else:
-            printf(f"[bold bright_white]   ──>[bold yellow] Wake lock not available. Install termux-api ", end='\r')
-            time.sleep(1.5)
-            return False
-    except Exception as e:
-        printf(f"[bold bright_white]   ──>[bold yellow] Wake lock not available.                  ", end='\r')
-        time.sleep(1.5)
-        return False
-
-# Release Termux wake lock
-def release_wakelock():
-    try:
-        import subprocess
-        subprocess.run(['termux-wake-unlock'], capture_output=True)
-    except:
-        pass
+# Keep-alive mechanism
+def keep_alive():
+    """Prevents the process from being suspended"""
+    signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Ignore suspend signal
+    signal.signal(signal.SIGCONT, signal.SIG_IGN)  # Ignore continue signal
 
 class AUTH:
 
@@ -320,7 +300,7 @@ class FACEBOOK_SHARE:
 
     def TAMPILKAN_LOGO(self) -> None:
         os.system('clear' if os.name == 'posix' else 'cls')
-        banner_text = r"""
+        banner_text = """
  __   __   ______   ______     ______    
 /\ \ / /  /\  ___\ /\  == \   /\  ___\   
 \ \ \'/   \ \  __\ \ \  __<   \ \___  \  
@@ -328,7 +308,7 @@ class FACEBOOK_SHARE:
   \/_/      \/_/     \/_____/   \/_____/
         """
         console.print(f"[bold cyan]{banner_text}[/bold cyan]")
-        console.print("[bold white]Facebook Share Bot v1.0[/bold white]", justify="center")
+        console.print("[bold white]Facebook Share Bot v1.0 - Background Running Enabled[/bold white]", justify="center")
         console.print("[dim]Automated sharing tool[/dim]\n", justify="center")
 
     def TAMPILKAN_PROFILE(self) -> None:
@@ -349,7 +329,9 @@ class FACEBOOK_SHARE:
 actively use - [bold red]NOT YOUR MAIN ACCOUNT[bold white]!
 
 This prevents loss of important information if
-the account gets restricted or blocked.""", width=56, style="bold bright_white", title="[bold bright_white][ Important Notice ]"))
+the account gets restricted or blocked.
+
+[bold cyan]✓ Background running enabled - safe to minimize![/bold cyan]""", width=56, style="bold bright_white", title="[bold bright_white][ Important Notice ]"))
 
     def GET_PH_TIME(self) -> str:
         ph_tz = pytz.timezone('Asia/Manila')
@@ -426,7 +408,7 @@ the account gets restricted or blocked.""", width=56, style="bold bright_white",
                             auth.DELETE_COOKIE_FROM_SERVER(cookie_uid)
                             break
                     
-                    await asyncio.sleep(0)
+                    # NO DELAY - immediate next request
                     
             except KeyboardInterrupt:
                 break
@@ -455,14 +437,11 @@ the account gets restricted or blocked.""", width=56, style="bold bright_white",
         
         START_TIME = self.GET_PH_TIME()
         
-        # Set TCP keepalive for connections
-        connector = aiohttp.TCPConnector(
-            force_close=False,
-            enable_cleanup_closed=True,
-            keepalive_timeout=300
-        )
+        # Create persistent session with keepalive
+        timeout = aiohttp.ClientTimeout(total=None, connect=30, sock_read=30)
+        connector = aiohttp.TCPConnector(limit=0, force_close=False, enable_cleanup_closed=True)
         
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             printf(f"[bold bright_white]   ──>[bold yellow] GETTING TOKENS FOR ALL COOKIES...    ", end='\r')
             time.sleep(1.0)
             
@@ -491,6 +470,7 @@ the account gets restricted or blocked.""", width=56, style="bold bright_white",
             time.sleep(1.5)
             
             printf(f"[bold bright_white]   ──>[bold green] STARTING MULTI-COOKIE SHARING...     ", end='\r')
+            printf(f"\n[bold bright_white]   ──>[bold cyan] BACKGROUND MODE ACTIVE - SAFE TO MINIMIZE!", end='\r')
             time.sleep(1.5)
             
             share_tasks = []
@@ -520,6 +500,9 @@ class MAIN:
 
     def __init__(self) -> None:
         try:
+            # Enable background running
+            keep_alive()
+            
             fb = FACEBOOK_SHARE()
             auth = AUTH()
             
@@ -550,7 +533,81 @@ class MAIN:
                     
                     if confirm == '1':
                         auth.DELETE_TOKEN()
-                        release_wakelock()
+                        fb.TAMPILKAN_LOGO()
+                        printf(Panel(f"[bold green]Logged out successfully!", width=56, style="bold bright_white", title="[bold bright_white][ Success ]"))
+                        sys.exit()
+                    else:
+                        continue
+                
+                elif choice == '2':
+                    # Update tool
+                    fb.TAMPILKAN_LOGO()
+                    fb.TAMPILKAN_PROFILE()
+                    
+                    printf(Panel(f"[bold yellow]Checking for updates...", width=56, style="bold bright_white", title="[bold bright_white][ Update Tool ]"))
+                    time.sleep(1.0)
+                    
+                    try:
+                        # Check if git is installed
+                        git_check = os.system('git --version > /dev/null 2>&1')
+                        
+                        if git_check != 0:
+                            fb.TAMPILKAN_LOGO()
+                            fb.TAMPILKAN_PROFILE()
+                            printf(Panel(f"[bold red]Git is not installed on your system!\n\n[bold white]Please install Git first:\n[bold cyan]• Linux: sudo apt install git\n[bold cyan]• Windows: Download from git-scm.com\n[bold cyan]• Mac: brew install git\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Git Not Found ]"))
+                            console.input("")
+                            continue
+                        
+                        # Check if current directory is a git repository
+                        git_dir_check = os.system('git rev-parse --git-dir > /dev/null 2>&1')
+                        
+                        if git_dir_check != 0:
+                            fb.TAMPILKAN_LOGO()
+                            fb.TAMPILKAN_PROFILE()
+                            printf(Panel(f"[bold red]This is not a Git repository!\n\n[bold white]To enable auto-updates, clone the repository using:\n[bold cyan]git clone [repository-url]\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Not a Git Repository ]"))
+                            console.input("")
+                            continue
+                        
+                        fb.TAMPILKAN_LOGO()
+                        fb.TAMPILKAN_PROFILE()
+                        printf(f"[bold bright_white]   ──>[bold yellow] FETCHING LATEST CHANGES...           ", end='\r')
+                        time.sleep(1.0)
+                        
+                        # Fetch latest changes
+                        fetch_result = os.system('git fetch origin > /dev/null 2>&1')
+                        
+                        if fetch_result != 0:
+                            fb.TAMPILKAN_LOGO()
+                            fb.TAMPILKAN_PROFILE()
+                            printf(Panel(f"[bold red]Failed to fetch updates!\n\n[bold white]Please check your internet connection\nor repository configuration.\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Fetch Failed ]"))
+                            console.input("")
+                            continue
+                        
+                        # Check if there are updates
+                        printf(f"[bold bright_white]   ──>[bold yellow] CHECKING FOR UPDATES...              ", end='\r')
+                        time.sleep(1.0)
+                        
+                        import subprocess
+                        result = subprocess.run(['git', 'rev-list', 'HEAD...origin/main', '--count'], 
+                                              capture_output=True, text=True)
+                        
+                        updates_count = result.stdout.strip()
+                        
+                        if updates_count == '0':
+                            fb.TAMPILKAN_LOGO()
+                            fb.TAMPILKAN_PROFILE()
+                            printf(Panel(f"[bold green]✓ Tool is already up to date!\n\n[bold white]You have the latest version.\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Already Updated ]"))
+                            console.input("")
+                            continue
+                        
+                        fb.TAMPILKAN_LOGO()
+                        fb.TAMPILKAN_PROFILE()
+                        printf(Panel(f"[bold green]Updates available!\n\n[bold white]Found [bold yellow]{updates_count}[bold white] new commit(s).\n\n[bold cyan]1.[bold white] Update Now\n[bold red]2.[bold white] Cancel", width=56, style="bold bright_white", title="[bold bright_white][ Updates Found ]", subtitle="[bold bright_white]╭─────", subtitle_align="left"))
+                        update_choice = console.input("[bold bright_white]   ╰─> ").strip()
+                        
+                        if update_choice != '1':
+                            continue
+                        
                         fb.TAMPILKAN_LOGO()
                         fb.TAMPILKAN_PROFILE()
                         printf(f"[bold bright_white]   ──>[bold yellow] UPDATING TOOL...                     ", end='\r')
@@ -564,7 +621,6 @@ class MAIN:
                             fb.TAMPILKAN_PROFILE()
                             printf(Panel(f"[bold green]✓ Tool updated successfully!\n\n[bold white]Please restart the tool to apply changes.\n\n[bold yellow]Exiting in 3 seconds...", width=56, style="bold bright_white", title="[bold bright_white][ Update Success ]"))
                             time.sleep(3.0)
-                            release_wakelock()
                             sys.exit()
                         else:
                             fb.TAMPILKAN_LOGO()
@@ -668,11 +724,8 @@ class MAIN:
 [bold white]Shares Per Cookie :[bold green] {share_count}
 [bold white]Expected Total :[bold red] {total_expected}""", width=56, style="bold bright_white", title="[bold bright_white][ Configuration ]"))
                     
-                    printf(Panel(f"[bold white]Multi-cookie sharing will start now!\n[bold yellow]⚠ Blocked cookies will be auto-deleted from server.\n[bold green]✓ All cookies run simultaneously for faster sharing.\n[bold cyan]✓ Process will continue even if you leave Termux!\n\n[bold white]Press Enter to start...", width=56, style="bold bright_white", title="[bold bright_white][ Ready ]"))
+                    printf(Panel(f"[bold white]Multi-cookie sharing will start now!\n[bold yellow]⚠ Blocked cookies will be auto-deleted from server.\n[bold green]✓ All cookies run simultaneously for faster sharing.\n[bold cyan]✓ Safe to minimize Termux - will keep running!\n\n[bold white]Press Enter to start...", width=56, style="bold bright_white", title="[bold bright_white][ Ready ]"))
                     console.input("")
-                    
-                    # Acquire wake lock before starting
-                    acquire_wakelock()
                     
                     # Reset counters
                     SUKSES.clear()
@@ -681,9 +734,6 @@ class MAIN:
                     
                     # Start sharing
                     asyncio.run(fb.MENGIRIM_SHARE_MULTI(share_count, auth))
-                    
-                    # Release wake lock after completion
-                    release_wakelock()
                     
                     # After sharing, ask to continue
                     printf(Panel(f"[bold white]Press Enter to return to menu...", width=56, style="bold bright_white", title="[bold bright_white][ Done ]"))
@@ -700,88 +750,11 @@ class MAIN:
         except KeyboardInterrupt:
             printf(f"\n[bold bright_white]   ──>[bold yellow] PROCESS STOPPED BY USER!             ")
             time.sleep(1.5)
-            release_wakelock()
             sys.exit()
         except Exception as e:
             printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
             time.sleep(3.0)
-            release_wakelock()
             sys.exit()
 
 if __name__ == '__main__':
     MAIN()
-        printf(Panel(f"[bold green]Logged out successfully!", width=56, style="bold bright_white", title="[bold bright_white][ Success ]"))
-                        sys.exit()
-                    else:
-                        continue
-                
-                elif choice == '2':
-                    # Update tool
-                    fb.TAMPILKAN_LOGO()
-                    fb.TAMPILKAN_PROFILE()
-                    
-                    printf(Panel(f"[bold yellow]Checking for updates...", width=56, style="bold bright_white", title="[bold bright_white][ Update Tool ]"))
-                    time.sleep(1.0)
-                    
-                    try:
-                        # Check if git is installed
-                        git_check = os.system('git --version > /dev/null 2>&1')
-                        
-                        if git_check != 0:
-                            fb.TAMPILKAN_LOGO()
-                            fb.TAMPILKAN_PROFILE()
-                            printf(Panel(f"[bold red]Git is not installed on your system!\n\n[bold white]Please install Git first:\n[bold cyan]• Termux: pkg install git\n[bold cyan]• Linux: sudo apt install git\n[bold cyan]• Windows: Download from git-scm.com\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Git Not Found ]"))
-                            console.input("")
-                            continue
-                        
-                        # Check if current directory is a git repository
-                        git_dir_check = os.system('git rev-parse --git-dir > /dev/null 2>&1')
-                        
-                        if git_dir_check != 0:
-                            fb.TAMPILKAN_LOGO()
-                            fb.TAMPILKAN_PROFILE()
-                            printf(Panel(f"[bold red]This is not a Git repository!\n\n[bold white]To enable auto-updates, clone the repository using:\n[bold cyan]git clone [repository-url]\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Not a Git Repository ]"))
-                            console.input("")
-                            continue
-                        
-                        fb.TAMPILKAN_LOGO()
-                        fb.TAMPILKAN_PROFILE()
-                        printf(f"[bold bright_white]   ──>[bold yellow] FETCHING LATEST CHANGES...           ", end='\r')
-                        time.sleep(1.0)
-                        
-                        # Fetch latest changes
-                        fetch_result = os.system('git fetch origin > /dev/null 2>&1')
-                        
-                        if fetch_result != 0:
-                            fb.TAMPILKAN_LOGO()
-                            fb.TAMPILKAN_PROFILE()
-                            printf(Panel(f"[bold red]Failed to fetch updates!\n\n[bold white]Please check your internet connection\nor repository configuration.\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Fetch Failed ]"))
-                            console.input("")
-                            continue
-                        
-                        # Check if there are updates
-                        printf(f"[bold bright_white]   ──>[bold yellow] CHECKING FOR UPDATES...              ", end='\r')
-                        time.sleep(1.0)
-                        
-                        import subprocess
-                        result = subprocess.run(['git', 'rev-list', 'HEAD...origin/main', '--count'], 
-                                              capture_output=True, text=True)
-                        
-                        updates_count = result.stdout.strip()
-                        
-                        if updates_count == '0':
-                            fb.TAMPILKAN_LOGO()
-                            fb.TAMPILKAN_PROFILE()
-                            printf(Panel(f"[bold green]✓ Tool is already up to date!\n\n[bold white]You have the latest version.\n\n[bold white]Press Enter to try again...", width=56, style="bold bright_white", title="[bold bright_white][ Already Updated ]"))
-                            console.input("")
-                            continue
-                        
-                        fb.TAMPILKAN_LOGO()
-                        fb.TAMPILKAN_PROFILE()
-                        printf(Panel(f"[bold green]Updates available!\n\n[bold white]Found [bold yellow]{updates_count}[bold white] new commit(s).\n\n[bold cyan]1.[bold white] Update Now\n[bold red]2.[bold white] Cancel", width=56, style="bold bright_white", title="[bold bright_white][ Updates Found ]", subtitle="[bold bright_white]╭─────", subtitle_align="left"))
-                        update_choice = console.input("[bold bright_white]   ╰─> ").strip()
-                        
-                        if update_choice != '1':
-                            continue
-                        
-                        fb.TAMPILKAN_LOGO()
