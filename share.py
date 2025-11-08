@@ -2,15 +2,21 @@ import os, time, sys, uuid, string, random, re
 from os import system as sm
 from sys import platform as pf
 from time import sleep as sp
+
+# Install required packages if missing
 try:
     import requests, bs4, rich, httpx
-    from rich import print as rp
-    from rich.panel import Panel as pan
-    from requests import get as gt
-    from requests import post as pt
-    from bs4 import BeautifulSoup
 except ModuleNotFoundError:
+    print("Installing required packages...")
     sm('python -m pip install requests bs4 rich httpx')
+    import requests, bs4, rich, httpx
+
+# Now import after ensuring packages are installed
+from rich import print as rp
+from rich.panel import Panel as pan
+from requests import get as gt
+from requests import post as pt
+from bs4 import BeautifulSoup
 
 #colors
 R="[bold red]"
@@ -135,7 +141,7 @@ def cuser(user, passw):
         'method': 'auth.login',
         'fb_api_req_friendly_name': 'authenticate',
         'fb_api_caller_class': 'com.facebook.account.login.protocol.Fb4aAuthHandler',
-        'access_token': '350685531728|62f8ce9f74b12f84c123cc23437a4a32',  # Updated access token
+        'access_token': '350685531728|62f8ce9f74b12f84c123cc23437a4a32',
         'api_key': '882a8490361da98702bf97a021ddc14d'
     }
 
@@ -147,7 +153,7 @@ def cuser(user, passw):
         'Host': 'b-api.facebook.com',
         'X-FB-Net-HNI': str(random.randint(20000, 40000)),
         'X-FB-SIM-HNI': str(random.randint(20000, 40000)),
-        'Authorization': 'OAuth 350685531728|62f8ce9f74b12f84c123cc23437a4a32',  # Added authorization header
+        'Authorization': 'OAuth 350685531728|62f8ce9f74b12f84c123cc23437a4a32',
         'X-FB-Connection-Type': 'WIFI',
         'X-Tigon-Is-Retry': 'False',
         'x-fb-session-id': 'nid=jiZ+yNNBgbwC;pid=Main;tid=132;nc=1;fc=0;bc=0;cid=d29d67d37eca387482a8a5b740f84f62',
@@ -162,7 +168,7 @@ def cuser(user, passw):
 
     try:
         response = httpx.post(
-            'https://b-api.facebook.com/method/auth.login',  # Updated API endpoint
+            'https://b-api.facebook.com/method/auth.login',
             data=data,
             headers=headers,
             timeout=30
