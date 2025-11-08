@@ -320,7 +320,7 @@ class FACEBOOK_SHARE:
 
     def TAMPILKAN_LOGO(self) -> None:
         os.system('clear' if os.name == 'posix' else 'cls')
-        banner_text = """
+        banner_text = r"""
  __   __   ______   ______     ______    
 /\ \ / /  /\  ___\ /\  == \   /\  ___\   
 \ \ \'/   \ \  __\ \ \  __<   \ \___  \  
