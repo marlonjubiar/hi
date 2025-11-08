@@ -1,89 +1,111 @@
-import asyncio
-import aiohttp
-import re
-from rich.console import Console
-import sys
-import os
-os.system('clear')
-console = Console()
-config = {
-	'cookies': '',
-	'post': ''
-}
-def banner():
-	console.print(
-		"""
-[bold blue] $$$$$$\                                          
-$$  __$$\                                         
-$$ /  \__| $$$$$$\   $$$$$$\   $$$$$$\   $$$$$$\  
-$$ |$$$$\ $$  __$$\ $$  __$$\ $$  __$$\ $$  __$$\ 
-$$ |\_$$ |$$ |  \__|$$$$$$$$ |$$$$$$$$ |$$ /  $$ |
-$$ |  $$ |$$ |      $$   ____|$$   ____|$$ |  $$ |
-\$$$$$$  |$$ |      \$$$$$$$\ \$$$$$$$\ \$$$$$$$ |
- \______/ \__|       \_______| \_______| \____$$ |
-                                        $$\   $$ |
-                                        \$$$$$$  |
-                                         \______/ [/bold blue]
-		"""
-	)
-banner()
-config['cookies'] = input("\033[0mCOOKIE : \033[92m")
-config['post'] = input("\033[0mPOST LINK : \033[92m")
-share_count = int(input("\033[0mSHARE COUNT : \033[92m"))
-if not config['post'].startswith('https://'):
-	console.print("[bold red]Invalid post link[/bold red]");sys.exit()
-elif not share_count:
-	console.print("[bold red]Bobo walang count[/bold red]");sys.exit()
+import os, uuid, random, re, time
+import requests, json
 
-os.system("clear")
-banner()
-headers = {
-	'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
-	'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
-	'sec-ch-ua-mobile': '?0',
-	'sec-ch-ua-platform': "Windows",
-	'sec-fetch-dest': 'document',
-	'sec-fetch-mode': 'navigate',
-	'sec-fetch-site': 'none',
-	'sec-fetch-user': '?1',
-	'upgrade-insecure-requests': '1'
-}
-class Share:
-	async def get_token(self, session):
-		headers['cookie'] = config['cookies']
-		async with session.get('https://business.facebook.com/content_management', headers=headers) as response:
-			data = await response.text()
-			access_token = 'EAAG' + re.search('EAAG(.*?)","', data).group(1)
-			return access_token, headers['cookie']
-	async def share(self, session, token, cookie):
-		headers['cookie']
-		headers['sec-fetch-dest']
-		headers['sec-fetch-mode']
-		headers['sec-fetch-site']
-		headers['sec-fetch-user']
-		headers['upgrade-insecure-requests']
-		headers['accept-encoding'] = 'gzip, deflate'
-		headers['host'] = 'b-graph.facebook.com'
-		headers['cookie'] = cookie
-		count = 1
-		with console.status("[bold green] Sending shares....") as status:
-			while count < share_count + 1:
-				async with session.post(f'https://b-graph.facebook.com/me/feed?link=https://mbasic.facebook.com/{config["post"]}&published=0&access_token={token}', headers=headers) as response:
-					data = await response.json()
-					if 'id' in data:
-						console.log(f"({count}/{share_count}) Complete")
-						count += 1
-					else:
-						console.log("[bold red]Cookie is blocked, ctrl c to exit !!!")
-						console.log(f"[white] Total Success : [bold green]{count}")
-						break
-async def main(num_tasks): 
-	async with aiohttp.ClientSession() as session:
-		share = Share()
-		token, cookie = await share.get_token(session)
-		tasks = []
-		for i in range(num_tasks):
-			task = asyncio.create_task(share.share(session, token, cookie))
-			tasks.append(task)
-		await asyncio.gather(*tasks)
-asyncio.run(main(1))
+def sxr_main():
+    os.system("clear")
+    print("\033[1;37m")
+    print("\033[1;92m══════════════════════════════════════════════════")
+    print("\033[1;96m          FACEBOOK COOKIE EXTRACTOR")
+    print("\033[1;92m══════════════════════════════════════════════════\n")
+    
+    # Prompt for email/UID
+    uid = input("\033[1;93m[?] ENTER YOUR UID/EMAIL: \033[1;97m")
+    
+    # Prompt for password
+    pww = input("\033[1;93m[?] ENTER YOUR PASSWORD: \033[1;97m")
+    
+    print("\033[1;92m\n[*] Processing login...\n")
+    
+    amazon = ("E6653","E6633","E6853","E6833","F3111","F3111 F3113","F5122","F3111 F3113","SO-04H","F3212","F3311","F8331","SO-02J","G3116","G8232")
+    ua = "Mozilla/5.0 (Linux; Android "+str(random.randint(4,13))+"; "+str(random.choice(amazon))+"; Windows 10 Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Kiwi Chrome/"+str(random.randint(84,106))+".0."+str(random.randint(4200,4900))+"."+str(random.randint(40,140))+" Mobile Safari/537.36"
+    check(uid, pww, ua)
+
+oks = []
+cps = []
+
+def check(uid, pww, ua):
+    try:
+        session = requests.Session()
+        
+        # Get login page to extract necessary tokens
+        git_fb = session.get("https://m.facebook.com/login/", headers={'User-Agent': ua}).text
+        
+        # Extract required tokens
+        lsd = re.search(r'name="lsd" value="(.*?)"', git_fb)
+        jazoest = re.search(r'name="jazoest" value="(.*?)"', git_fb)
+        m_ts = re.search(r'name="m_ts" value="(.*?)"', git_fb)
+        li = re.search(r'name="li" value="(.*?)"', git_fb)
+        
+        # Prepare login data
+        _data = {
+            'lsd': lsd.group(1) if lsd else '',
+            'jazoest': jazoest.group(1) if jazoest else '',
+            'm_ts': m_ts.group(1) if m_ts else '',
+            'li': li.group(1) if li else '',
+            'try_number': '0',
+            'unrecognized_tries': '0',
+            'email': uid,
+            'pass': pww,
+            'login': 'Log In',
+            'bi_xrwh': '0'
+        }
+        
+        _header = {
+            'authority': 'm.facebook.com',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+            'cache-control': 'max-age=0',
+            'content-type': 'application/x-www-form-urlencoded',
+            'origin': 'https://m.facebook.com',
+            'referer': 'https://m.facebook.com/login/',
+            'sec-ch-ua': '"Not-A.Brand";v="99", "Chromium";v="124"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-user': '?1',
+            'upgrade-insecure-requests': '1',
+            'user-agent': ua
+        }
+        
+        # Submit login
+        url = 'https://m.facebook.com/login/device-based/regular/login/?refsrc=deprecated&lwv=100'
+        sxr_respns = session.post(url, data=_data, headers=_header, allow_redirects=False)
+        
+        # Get cookies
+        login_coki = session.cookies.get_dict()
+        
+        print('\033[1;92m══════════════════════════════════════════════════')
+        
+        if "c_user" in login_coki:
+            print("\033[1;92m[✓] Login Successful!")
+            print('\033[1;92m══════════════════════════════════════════════════')
+            
+            # Format cookie string
+            coki = ";".join([f"{key}={value}" for key, value in login_coki.items()])
+            
+            print(f"\033[1;93m[USER ID]: {login_coki.get('c_user')}")
+            print(f"\033[1;96m[COOKIE]:\n{coki}")
+            print('\033[1;92m══════════════════════════════════════════════════')
+            
+            oks.append(uid)
+            
+            # Save cookie to file
+            with open('cookies.txt', 'a') as f:
+                f.write(f"{uid}|{pww}|{coki}\n")
+                
+        elif "checkpoint" in login_coki:
+            print(f'\033[1;91m[×] Account Checkpoint')
+            print(f'\033[1;93m[!] {uid} | {pww}')
+            cps.append(uid)
+            
+        else:
+            print(f'\033[1;91m[×] Login Failed')
+            print(f'\033[1;93m[!] {uid} | {pww}')
+            print(f'\033[1;90m[DEBUG] Cookies received: {list(login_coki.keys())}')
+            
+    except Exception as e:
+        print(f'\033[1;91m[ERROR]: {str(e)}')
+
+sxr_main()
