@@ -86,8 +86,25 @@ def datr(user, passw):
         response = session.get(login_url, headers=headers)
         
         soup = BeautifulSoup(response.text, 'html.parser')
-        lsd = soup.find('input', {'name': 'lsd'})['value']
-        jazoest = soup.find('input', {'name': 'jazoest'})['value']
+        
+        # Check if form fields exist
+        lsd_field = soup.find('input', {'name': 'lsd'})
+        jazoest_field = soup.find('input', {'name': 'jazoest'})
+        
+        if not lsd_field or not jazoest_field:
+            clear()
+            print(f"{r}Error: Unable to access Facebook login page")
+            print(f"{y}This might be due to:")
+            print(f"{c}  - Facebook blocking automated access")
+            print(f"{c}  - Network/connection issues")
+            print(f"{c}  - Facebook page structure changed")
+            print(f"\n{y}Try using Method 2 (COOKIE 2) instead")
+            input(f"\n{g}Press Enter to continue...")
+            main()
+            return
+        
+        lsd = lsd_field['value']
+        jazoest = jazoest_field['value']
 
         login_data = {
             'lsd': lsd,
@@ -110,12 +127,15 @@ def datr(user, passw):
             print(f"{r}Account is in checkpoint")
         else:
             clear()
-            print(f"{r}Invalid credentials")
+            print(f"{r}Invalid credentials or login blocked")
+            print(f"{y}Try using Method 2 (COOKIE 2) instead")
 
     except Exception as e:
+        clear()
         print(f"{r}Error occurred: {str(e)}")
+        print(f"\n{y}Try using Method 2 (COOKIE 2) instead")
     
-    input(f"{g}Press Enter to continue...")
+    input(f"\n{g}Press Enter to continue...")
     main()
 
 def cuser(user, passw):
