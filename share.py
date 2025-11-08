@@ -252,8 +252,9 @@ def main():
             print(f"{Colors.RED}[!] Email cannot be empty!{Colors.END}")
             sys.exit(1)
         
-        # Get password input (hidden)
-        password = getpass(f"{Colors.CYAN}[?] Enter your Facebook password:{Colors.END} ")
+        # Get password input (visible in Termux)
+        print(f"{Colors.CYAN}[?] Enter your Facebook password:{Colors.END} ", end='')
+        password = input().strip()
         
         if not password:
             print(f"{Colors.RED}[!] Password cannot be empty!{Colors.END}")
