@@ -1,250 +1,312 @@
-import os, time, sys, uuid, string, random, re
-from os import system as sm
-from sys import platform as pf
-from time import sleep as sp
+#!/usr/bin/env python3
+"""
+Facebook Cookie Extractor for Termux
+Usage: python3 fb_login.py
+"""
 
-# Install required packages if missing
-try:
-    import requests, bs4, rich, httpx
-except ModuleNotFoundError:
-    print("Installing required packages...")
-    sm('python -m pip install requests bs4 rich httpx')
-    import requests, bs4, rich, httpx
+import random
+import re
+import time
+import requests
+from typing import Dict, Optional, Tuple
+from getpass import getpass
+import sys
 
-# Now import after ensuring packages are installed
-from rich import print as rp
-from rich.panel import Panel as pan
-from requests import get as gt
-from requests import post as pt
-from bs4 import BeautifulSoup
+class Colors:
+    """ANSI color codes for terminal"""
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
 
-#colors
-R="[bold red]"
-G="[bold green]"
-Y="[bold yellow]"
-B="[bold blue]"
-M="[bold magenta]"
-P="[bold violet]"
-C="[bold cyan]"
-W="[bold white]"
-r="\033[1;31m"
-g="\033[1;32m"
-y="\033[1;33m"
-b="\033[1;34m"
-m="\033[1;35m"
-c="\033[1;36m"
-w="\033[1;37m"
+def print_banner():
+    """Display script banner"""
+    banner = f"""
+{Colors.CYAN}{Colors.BOLD}
+╔═══════════════════════════════════════════╗
+║     Facebook Cookie Extractor v2.0        ║
+║         Made for Termux                   ║
+╚═══════════════════════════════════════════╝
+{Colors.END}
+"""
+    print(banner)
 
-def randc():
-    randcolor=random.choice([R,G,Y,B,M,P,C,W])
-    return randcolor
-
-def logo():
-    rp(pan("""%s                     ######   ######
-                    ##    ## ##    ##
-                    ##       ##    
-                    ##       ##    
-                    ##       ##
-                    ##       ##   ####
-                    ##       ##    ##
-                    ##    ## ##    ##
-                     ######   ######"""%(randc()),title="%sCOOKIE GETTER"%(Y),subtitle="%sDEVELOP BY PABLO"%(R),border_style=f"bold purple"))
-
-def clear():
-    if pf in ['win32','win64']:
-        sm('cls')
-    else:
-        sm('clear')
-    logo()
-
-def get_response(url):
-    session = requests.Session()
-    return session.get(url, headers={
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-    })
-
-def datr(user, passw):
-    session = requests.Session()
-    headers = {
-        'authority': 'm.facebook.com',
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'accept-language': 'en-US,en;q=0.9',
-        'cache-control': 'max-age=0',
-        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120"',
-        'sec-ch-ua-mobile': '?1',
-        'sec-ch-ua-platform': '"Android"',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'none',
-        'sec-fetch-user': '?1',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-    }
-
-    try:
-        login_url = 'https://m.facebook.com/login/device-based/regular/login/'
-        response = session.get(login_url, headers=headers)
+class FacebookLogin:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive'
+        })
         
-        soup = BeautifulSoup(response.text, 'html.parser')
+    def generate_user_agent(self) -> str:
+        """Generate a realistic mobile user agent"""
+        android_versions = ['10', '11', '12', '13', '14']
+        chrome_versions = range(110, 131)
         
-        # Check if form fields exist
-        lsd_field = soup.find('input', {'name': 'lsd'})
-        jazoest_field = soup.find('input', {'name': 'jazoest'})
+        android_ver = random.choice(android_versions)
+        chrome_ver = random.choice(chrome_versions)
+        build = random.randint(5000, 6500)
+        patch = random.randint(50, 200)
         
-        if not lsd_field or not jazoest_field:
-            clear()
-            print(f"{r}Error: Unable to access Facebook login page")
-            print(f"{y}This might be due to:")
-            print(f"{c}  - Facebook blocking automated access")
-            print(f"{c}  - Network/connection issues")
-            print(f"{c}  - Facebook page structure changed")
-            print(f"\n{y}Try using Method 2 (COOKIE 2) instead")
-            input(f"\n{g}Press Enter to continue...")
-            main()
-            return
+        devices = [
+            "SM-G960F", "SM-G973F", "SM-G980F", "SM-G991B",
+            "SM-A505F", "SM-A515F", "SM-N975F", "SM-N986B",
+            "Pixel 5", "Pixel 6", "Pixel 7", "Pixel 8"
+        ]
         
-        lsd = lsd_field['value']
-        jazoest = jazoest_field['value']
+        device = random.choice(devices)
+        
+        return (f"Mozilla/5.0 (Linux; Android {android_ver}; {device}) "
+                f"AppleWebKit/537.36 (KHTML, like Gecko) "
+                f"Chrome/{chrome_ver}.0.{build}.{patch} Mobile Safari/537.36")
 
-        login_data = {
-            'lsd': lsd,
-            'jazoest': jazoest,
-            'email': user,
-            'pass': passw,
-            'login': 'Log In'
+    def extract_form_data(self, html_content: str) -> Dict[str, str]:
+        """Extract all necessary tokens from the login page"""
+        form_data = {}
+        
+        # Extract lsd token
+        lsd_match = re.search(r'"lsd":"([^"]+)"', html_content)
+        if lsd_match:
+            form_data['lsd'] = lsd_match.group(1)
+        
+        # Extract jazoest
+        jazoest_match = re.search(r'name="jazoest"\s+value="([^"]+)"', html_content)
+        if jazoest_match:
+            form_data['jazoest'] = jazoest_match.group(1)
+        
+        # Extract m_ts
+        m_ts_match = re.search(r'name="m_ts"\s+value="([^"]+)"', html_content)
+        if m_ts_match:
+            form_data['m_ts'] = m_ts_match.group(1)
+        
+        # Extract li
+        li_match = re.search(r'name="li"\s+value="([^"]+)"', html_content)
+        if li_match:
+            form_data['li'] = li_match.group(1)
+        
+        # Extract try_number
+        try_number_match = re.search(r'name="try_number"\s+value="([^"]+)"', html_content)
+        if try_number_match:
+            form_data['try_number'] = try_number_match.group(1)
+        else:
+            form_data['try_number'] = '0'
+        
+        # Extract unrecognized_tries
+        unrecognized_match = re.search(r'name="unrecognized_tries"\s+value="([^"]+)"', html_content)
+        if unrecognized_match:
+            form_data['unrecognized_tries'] = unrecognized_match.group(1)
+        else:
+            form_data['unrecognized_tries'] = '0'
+            
+        return form_data
+
+    def prepare_login_data(self, email: str, password: str, form_data: Dict) -> Dict:
+        """Prepare complete login payload"""
+        return {
+            'lsd': form_data.get('lsd', ''),
+            'jazoest': form_data.get('jazoest', ''),
+            'm_ts': form_data.get('m_ts', ''),
+            'li': form_data.get('li', ''),
+            'try_number': form_data.get('try_number', '0'),
+            'unrecognized_tries': form_data.get('unrecognized_tries', '0'),
+            'email': email,
+            'pass': password,
+            'login': 'Log In',
+            'bi_xrwh': str(random.randint(0, 999999))
         }
 
-        login_response = session.post(login_url, data=login_data, headers=headers)
-        cookies = session.cookies.get_dict()
+    def get_headers(self, user_agent: str, referer: str = None) -> Dict:
+        """Generate request headers"""
+        headers = {
+            'authority': 'm.facebook.com',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'accept-language': 'en-US,en;q=0.9',
+            'cache-control': 'max-age=0',
+            'content-type': 'application/x-www-form-urlencoded',
+            'origin': 'https://m.facebook.com',
+            'referer': referer or 'https://m.facebook.com/',
+            'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-user': '?1',
+            'upgrade-insecure-requests': '1',
+            'user-agent': user_agent,
+        }
+        return headers
 
-        if 'c_user' in cookies:
-            clear()
-            print(f"{g}Successfully logged in!")
-            cookie_string = '; '.join([f"{k}={v}" for k, v in cookies.items()])
-            print(f"{c}Cookie: {g}{cookie_string}")
-        elif 'checkpoint' in cookies:
-            clear()
-            print(f"{r}Account is in checkpoint")
-        else:
-            clear()
-            print(f"{r}Invalid credentials or login blocked")
-            print(f"{y}Try using Method 2 (COOKIE 2) instead")
+    def extract_cookies(self) -> Dict[str, str]:
+        """Extract important cookies from session"""
+        cookies = self.session.cookies.get_dict()
+        
+        important_cookies = {}
+        cookie_keys = ['c_user', 'xs', 'fr', 'datr', 'sb', 'spin', 'wd', 'presence']
+        
+        for key in cookie_keys:
+            if key in cookies:
+                important_cookies[key] = cookies[key]
+        
+        return important_cookies
 
-    except Exception as e:
-        clear()
-        print(f"{r}Error occurred: {str(e)}")
-        print(f"\n{y}Try using Method 2 (COOKIE 2) instead")
-    
-    input(f"\n{g}Press Enter to continue...")
-    main()
+    def attempt_login(self, email: str, password: str) -> Tuple[bool, Dict]:
+        """Main login method"""
+        try:
+            print(f"{Colors.YELLOW}[*] Generating user agent...{Colors.END}")
+            user_agent = self.generate_user_agent()
+            
+            print(f"{Colors.YELLOW}[*] Fetching login page...{Colors.END}")
+            login_page_url = "https://m.facebook.com/login/"
+            self.session.headers.update(self.get_headers(user_agent))
+            
+            initial_response = self.session.get(login_page_url, timeout=15)
+            
+            if initial_response.status_code != 200:
+                return False, {"error": "Failed to load login page"}
+            
+            print(f"{Colors.YELLOW}[*] Extracting security tokens...{Colors.END}")
+            form_data = self.extract_form_data(initial_response.text)
+            
+            if not form_data.get('lsd'):
+                return False, {"error": "Failed to extract required tokens"}
+            
+            print(f"{Colors.YELLOW}[*] Preparing login request...{Colors.END}")
+            login_data = self.prepare_login_data(email, password, form_data)
+            
+            print(f"{Colors.YELLOW}[*] Attempting login...{Colors.END}")
+            login_url = 'https://m.facebook.com/login/device-based/regular/login/?refsrc=deprecated&lwv=100'
+            
+            login_response = self.session.post(
+                login_url,
+                data=login_data,
+                headers=self.get_headers(user_agent, login_page_url),
+                allow_redirects=True,
+                timeout=30
+            )
+            
+            print(f"{Colors.YELLOW}[*] Checking login status...{Colors.END}")
+            cookies = self.extract_cookies()
+            
+            if "c_user" in cookies and cookies["c_user"]:
+                cookie_string = "; ".join([f"{key}={value}" for key, value in cookies.items()])
+                uid = cookies.get('c_user', '')
+                
+                return True, {
+                    "success": True,
+                    "cookie": cookie_string,
+                    "uid": uid,
+                    "cookies": cookies
+                }
+            
+            if "checkpoint" in login_response.url.lower():
+                return False, {
+                    "error": "Account checkpoint required. Please verify your account through the Facebook app/website first."
+                }
+            
+            if "two_factor" in login_response.text or "two-factor" in login_response.url:
+                return False, {
+                    "error": "Two-factor authentication is enabled. Please disable 2FA or use app-specific password."
+                }
+            
+            return False, {
+                "error": "Invalid email or password. Please check your credentials."
+            }
+                
+        except requests.exceptions.Timeout:
+            return False, {"error": "Request timeout. Check your internet connection."}
+        except requests.exceptions.ConnectionError:
+            return False, {"error": "Connection error. Check your internet connection."}
+        except Exception as e:
+            return False, {"error": f"Unexpected error: {str(e)}"}
 
-def cuser(user, passw):
-    device_id = str(uuid.uuid4())
-    adid = str(uuid.uuid4())
-    family_device_id = str(uuid.uuid4())
-    
-    data = {
-        'adid': adid,
-        'format': 'json',
-        'device_id': device_id,
-        'email': user,
-        'password': passw,
-        'generate_session_cookies': '1',
-        'credentials_type': 'password',
-        'source': 'login',
-        'error_detail_type': 'button_with_disabled',
-        'meta_inf_fbmeta': '',
-        'advertiser_id': adid,
-        'currently_logged_in_userid': '0',
-        'locale': 'en_US',
-        'client_country_code': 'US',
-        'method': 'auth.login',
-        'fb_api_req_friendly_name': 'authenticate',
-        'fb_api_caller_class': 'com.facebook.account.login.protocol.Fb4aAuthHandler',
-        'access_token': '350685531728|62f8ce9f74b12f84c123cc23437a4a32',
-        'api_key': '882a8490361da98702bf97a021ddc14d'
-    }
-
-    headers = {
-        'User-Agent': '[FBAN/FB4A;FBAV/396.1.0.28.104;FBBV/429650999;FBDM/{density=2.25,width=720,height=1452};FBLC/en_US;FBRV/437165341;FBCR/Carrier;FBMF/OPPO;FBBD/OPPO;FBPN/com.facebook.katana;FBDV/CPH1893;FBSV/10;FBOP/1;FBCA/arm64-v8a:;]',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'close',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Host': 'b-api.facebook.com',
-        'X-FB-Net-HNI': str(random.randint(20000, 40000)),
-        'X-FB-SIM-HNI': str(random.randint(20000, 40000)),
-        'Authorization': 'OAuth 350685531728|62f8ce9f74b12f84c123cc23437a4a32',
-        'X-FB-Connection-Type': 'WIFI',
-        'X-Tigon-Is-Retry': 'False',
-        'x-fb-session-id': 'nid=jiZ+yNNBgbwC;pid=Main;tid=132;nc=1;fc=0;bc=0;cid=d29d67d37eca387482a8a5b740f84f62',
-        'x-fb-device-group': '5120',
-        'X-FB-Friendly-Name': 'authenticate',
-        'X-FB-Request-Analytics-Tags': 'graphservice',
-        'X-FB-HTTP-Engine': 'Liger',
-        'X-FB-Client-IP': 'True',
-        'X-FB-Server-Cluster': 'True',
-        'x-fb-connection-token': 'd29d67d37eca387482a8a5b740f84f62'
-    }
-
+def save_cookie_to_file(cookie: str, uid: str):
+    """Save cookie to file"""
     try:
-        response = httpx.post(
-            'https://b-api.facebook.com/method/auth.login',
-            data=data,
-            headers=headers,
-            timeout=30
-        ).json()
-
-        if 'access_token' in response:
-            clear()
-            print(f"{g}Login successful!")
-            cookie_string = "sb=" + ''.join(random.choices(string.ascii_letters + string.digits + '_', k=24)) + "; "
-            if 'session_cookies' in response:
-                cookie_string += ';'.join([f"{cookie['name']}={cookie['value']}" for cookie in response['session_cookies']])
-            print(f"{c}Cookie: {g}{cookie_string}")
-            print(f"{c}Access Token: {g}{response.get('access_token', '')}")
-        elif 'error_msg' in response:
-            clear()
-            print(f"{r}Login failed: {response['error_msg']}")
-        else:
-            clear()
-            print(f"{r}Login failed or checkpoint required")
-            print(response)
-    
+        filename = f"fb_cookie_{uid}.txt"
+        with open(filename, 'w') as f:
+            f.write(f"User ID: {uid}\n")
+            f.write(f"Cookie String:\n{cookie}\n\n")
+            f.write(f"Generated at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        return filename
     except Exception as e:
-        print(f"{r}Error occurred: {str(e)}")
-    
-    input(f"\n{c}Press Enter to continue...")
-    main()
-
+        print(f"{Colors.RED}[!] Error saving to file: {str(e)}{Colors.END}")
+        return None
 
 def main():
-    clear()
-    try:
-        user = input(f"{c}(USER ID/EMAIL):~ ")
-        passw = input(f"{c}(PASSWORD):~ ")
-    except (KeyboardInterrupt, EOFError):
-        print(f"{r}\nOperation cancelled by user")
-        sys.exit(1)
-
-    clear()
-    rp(pan(f"{Y}[{C}1{Y}]{G} COOKIE 1(datr, fr, xs)\n{Y}[{C}2{Y}]{G} COOKIE 2(c_user w/ token)\n{Y}[{C}3{Y}]{R} EXIT",
-           border_style="bold purple"))
+    """Main function"""
+    print_banner()
     
     try:
-        select = int(input(f"{c}Choose Number: {y}"))
-        if select not in [1, 2, 3]:
-            raise ValueError
-    except ValueError:
-        print(f"{r}Please enter a valid number (1-3)")
-        sp(2)
-        return main()
+        # Get email input
+        print(f"{Colors.CYAN}[?] Enter your Facebook email/phone:{Colors.END} ", end='')
+        email = input().strip()
+        
+        if not email:
+            print(f"{Colors.RED}[!] Email cannot be empty!{Colors.END}")
+            sys.exit(1)
+        
+        # Get password input (hidden)
+        password = getpass(f"{Colors.CYAN}[?] Enter your Facebook password:{Colors.END} ")
+        
+        if not password:
+            print(f"{Colors.RED}[!] Password cannot be empty!{Colors.END}")
+            sys.exit(1)
+        
+        print(f"\n{Colors.BLUE}{'='*45}{Colors.END}")
+        print(f"{Colors.YELLOW}[*] Starting login process...{Colors.END}\n")
+        
+        # Create login instance and attempt login
+        fb_login = FacebookLogin()
+        success, result = fb_login.attempt_login(email, password)
+        
+        print(f"{Colors.BLUE}{'='*45}{Colors.END}\n")
+        
+        if success:
+            print(f"{Colors.GREEN}{Colors.BOLD}[✓] LOGIN SUCCESSFUL!{Colors.END}\n")
+            print(f"{Colors.CYAN}User ID:{Colors.END} {result['uid']}")
+            print(f"\n{Colors.CYAN}Cookie String:{Colors.END}")
+            print(f"{Colors.WHITE}{result['cookie']}{Colors.END}\n")
+            
+            # Display individual cookies
+            print(f"{Colors.CYAN}Individual Cookies:{Colors.END}")
+            for key, value in result['cookies'].items():
+                print(f"  {Colors.YELLOW}{key}:{Colors.END} {value[:50]}..." if len(value) > 50 else f"  {Colors.YELLOW}{key}:{Colors.END} {value}")
+            
+            # Ask to save to file
+            print(f"\n{Colors.CYAN}[?] Save cookie to file? (y/n):{Colors.END} ", end='')
+            save_choice = input().strip().lower()
+            
+            if save_choice == 'y':
+                filename = save_cookie_to_file(result['cookie'], result['uid'])
+                if filename:
+                    print(f"{Colors.GREEN}[✓] Cookie saved to: {filename}{Colors.END}")
+            
+            print(f"\n{Colors.GREEN}[✓] You can now use this cookie for automation!{Colors.END}")
+            
+        else:
+            print(f"{Colors.RED}{Colors.BOLD}[✗] LOGIN FAILED!{Colors.END}\n")
+            print(f"{Colors.RED}Error: {result.get('error', 'Unknown error')}{Colors.END}")
+            
+            print(f"\n{Colors.YELLOW}Troubleshooting tips:{Colors.END}")
+            print(f"  1. Double-check your email and password")
+            print(f"  2. Disable Two-Factor Authentication (2FA)")
+            print(f"  3. Try logging in through browser first")
+            print(f"  4. Check if your account has security checkpoint")
+            print(f"  5. Make sure you have stable internet connection\n")
+            
+    except KeyboardInterrupt:
+        print(f"\n\n{Colors.YELLOW}[!] Process interrupted by user.{Colors.END}")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n{Colors.RED}[!] An error occurred: {str(e)}{Colors.END}")
+        sys.exit(1)
 
-    if select == 1:
-        datr(user, passw)
-    elif select == 2:
-        cuser(user, passw)
-    else:
-        sys.exit(f"{r}QUITTING")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
