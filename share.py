@@ -79,6 +79,7 @@ def check(uid, pww, ua):
         print('\033[1;92m══════════════════════════════════════════════════')
         
         # Check for successful login (c_user cookie means logged in)
+        # Also check for datr as fallback indicator
         if "c_user" in login_coki:
             print("\033[1;92m[✓] LOGIN SUCCESSFUL!")
             print("\033[1;92m[✓] COOKIES EXTRACTED SUCCESSFULLY!")
@@ -88,6 +89,27 @@ def check(uid, pww, ua):
             coki = ";".join([f"{key}={value}" for key, value in login_coki.items()])
             
             print(f"\033[1;93m[USER ID]: \033[1;97m{login_coki.get('c_user')}")
+            print(f"\033[1;96m\n[COOKIE]:\033[1;97m\n{coki}")
+            print('\033[1;92m\n══════════════════════════════════════════════════')
+            print("\033[1;92m[✓] COOKIE SAVED TO cookies.txt")
+            print('\033[1;92m══════════════════════════════════════════════════\n')
+            
+            oks.append(uid)
+            
+            # Save cookie to file
+            with open('cookies.txt', 'a') as f:
+                f.write(f"{uid}|{pww}|{coki}\n")
+        
+        elif "datr" in login_coki and len(login_coki) >= 3:
+            # datr exists with multiple cookies - might be working session
+            print("\033[1;92m[✓] SESSION CREATED SUCCESSFULLY!")
+            print("\033[1;92m[✓] COOKIES EXTRACTED (DATR BASED)")
+            print('\033[1;92m══════════════════════════════════════════════════')
+            
+            # Format cookie string
+            coki = ";".join([f"{key}={value}" for key, value in login_coki.items()])
+            
+            print(f"\033[1;93m[DATR]: \033[1;97m{login_coki.get('datr')[:50]}...")
             print(f"\033[1;96m\n[COOKIE]:\033[1;97m\n{coki}")
             print('\033[1;92m\n══════════════════════════════════════════════════')
             print("\033[1;92m[✓] COOKIE SAVED TO cookies.txt")
