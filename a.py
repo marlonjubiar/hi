@@ -1,251 +1,113 @@
-import requests
-import json
-from time import sleep
 import sys
-
-class FBNameChanger:
-    def __init__(self, access_token):
-        self.access_token = access_token
-        self.base_url = "https://graph.facebook.com"
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-        })
-        
-    def get_current_info(self):
-        """Get current Facebook profile info"""
-        try:
-            url = f"{self.base_url}/me"
-            params = {
-                'fields': 'id,name,first_name,last_name',
-                'access_token': self.access_token
-            }
-            response = self.session.get(url, params=params, timeout=10)
-            
-            if response.status_code == 200:
-                return True, response.json()
-            else:
-                error = response.json()
-                error_msg = error.get('error', {}).get('message', 'Unknown error')
-                return False, f"Error: {error_msg}"
-        except Exception as e:
-            return False, f"Exception: {str(e)}"
-    
-    def change_name_direct(self, first_name, last_name, badge_position="last"):
-        """Change Facebook name - tries multiple methods"""
-        verified_badge = "󱢏"
-        
-        # Apply badge based on position
-        if badge_position == "last":
-            new_first = first_name
-            new_last = f"{last_name} {verified_badge}"
-        else:
-            new_first = f"{first_name} {verified_badge}"
-            new_last = last_name
-        
-        methods = [
-            self._method_1(new_first, new_last),
-            self._method_2(new_first, new_last),
-            self._method_3(new_first, new_last),
-        ]
-        
-        for i, (success, message) in enumerate(methods, 1):
-            print(f"[*] Trying method {i}...")
-            if success:
-                return True, message, f"{new_first} {new_last}"
-            sleep(1)
-        
-        return False, "All methods failed. Facebook is blocking the badge.", None
-    
-    def _method_1(self, first_name, last_name):
-        """Method 1: Standard POST"""
-        try:
-            url = f"{self.base_url}/me"
-            data = {
-                'access_token': self.access_token,
-                'first_name': first_name,
-                'last_name': last_name
-            }
-            response = self.session.post(url, data=data, timeout=15)
-            
-            if response.status_code == 200:
-                # Verify the change
-                sleep(2)
-                success, result = self.get_current_info()
-                if success and isinstance(result, dict):
-                    current_name = result.get('name', '')
-                    if "󱢏" in current_name:
-                        return True, "Method 1 succeeded!"
-                return False, "API accepted but badge was filtered"
-            return False, f"Method 1 failed: {response.status_code}"
-        except Exception as e:
-            return False, f"Method 1 error: {str(e)}"
-    
-    def _method_2(self, first_name, last_name):
-        """Method 2: With locale and method override"""
-        try:
-            url = f"{self.base_url}/me"
-            data = {
-                'access_token': self.access_token,
-                'first_name': first_name,
-                'last_name': last_name,
-                'locale': 'en_US',
-                'method': 'POST'
-            }
-            response = self.session.post(url, data=data, timeout=15)
-            
-            if response.status_code == 200:
-                sleep(2)
-                success, result = self.get_current_info()
-                if success and isinstance(result, dict):
-                    current_name = result.get('name', '')
-                    if "󱢏" in current_name:
-                        return True, "Method 2 succeeded!"
-                return False, "API accepted but badge was filtered"
-            return False, f"Method 2 failed: {response.status_code}"
-        except Exception as e:
-            return False, f"Method 2 error: {str(e)}"
-    
-    def _method_3(self, first_name, last_name):
-        """Method 3: Using alternate encoding"""
-        try:
-            # Try with URL encoding
-            url = f"{self.base_url}/me"
-            
-            headers = {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            }
-            
-            data = {
-                'access_token': self.access_token,
-                'first_name': first_name,
-                'last_name': last_name,
-            }
-            
-            response = self.session.post(url, data=data, headers=headers, timeout=15)
-            
-            if response.status_code == 200:
-                sleep(2)
-                success, result = self.get_current_info()
-                if success and isinstance(result, dict):
-                    current_name = result.get('name', '')
-                    if "󱢏" in current_name:
-                        return True, "Method 3 succeeded!"
-                return False, "API accepted but badge was filtered"
-            return False, f"Method 3 failed: {response.status_code}"
-        except Exception as e:
-            return False, f"Method 3 error: {str(e)}"
-
-def print_banner():
-    banner = """
-╔═══════════════════════════════════════╗
-║   FB NAME CHANGER - VERIFIED BADGE    ║
-║      Add 󱢏 to Your Name (v2.0)        ║
-╚═══════════════════════════════════════╝
-    """
-    print(banner)
-
-def main():
-    print_banner()
-    
-    print("\n[!] IMPORTANT NOTICE:")
-    print("[!] Facebook's API filters special characters server-side")
-    print("[!] This script tries multiple methods but may not work")
-    print("[!] Facebook has strengthened protections against fake badges")
-    print("[!] Use at your own risk!\n")
-    
-    # Get access token
-    print("[*] Enter your Facebook Access Token:")
-    print("[?] Get from: developers.facebook.com/tools/explorer/")
-    access_token = input("\nToken: ").strip()
-    
-    if not access_token:
-        print("\n[-] Access token required!")
-        sys.exit(1)
-    
-    changer = FBNameChanger(access_token)
-    
-    # Verify token
-    print("\n[*] Verifying access token...")
-    success, result = changer.get_current_info()
-    
-    if not success:
-        print(f"[-] Token verification failed: {result}")
-        sys.exit(1)
-    
-    print(f"[+] Token verified!")
-    print(f"[+] Current Name: {result.get('name', 'Unknown')}")
-    print(f"[+] User ID: {result.get('id', 'Unknown')}")
-    
-    # Get new name
-    print("\n[*] Enter new name:")
-    first_name = input("First Name: ").strip()
-    last_name = input("Last Name: ").strip()
-    
-    if not first_name or not last_name:
-        print("\n[-] Both names required!")
-        sys.exit(1)
-    
-    # Choose badge position
-    print("\n[*] Badge position:")
-    print("[1] Last Name (recommended)")
-    print("[2] First Name")
-    pos_choice = input("\nSelect: ").strip()
-    
-    badge_pos = "last" if pos_choice == "1" else "first"
-    
-    # Preview
-    if badge_pos == "last":
-        preview = f"{first_name} {last_name} 󱢏"
+import os
+os.system('clear')
+import requests
+import threading
+import time
+import json,requests,time
+from time import strftime
+from pystyle import Colorate, Colors, Write, Add, Center
+__ZALO__ = 'https://zalo.me/g/apmxom704'
+__ADMIN__ = 'D One'
+__SHOP__ = 't.me/DeveloperTiktok016'
+__VERSION__ = '1.0'
+__NHV__ = '\033[1;91m[\033[1;92m●\033[1;91m]\033[1;97m ➻❥'  
+def banner():
+    print(f''' 
+\033[1;34m╔═════════════════════════════════════════════════════════════════|               
+██████╗      ██████╗ ███╗   ██╗███████╗
+██╔══██╗    ██╔═══██╗████╗  ██║██╔════╝
+██║  ██║    ██║   ██║██╔██╗ ██║█████╗  
+██║  ██║    ██║   ██║██║╚██╗██║██╔══╝  
+██████╔╝    ╚██████╔╝██║ ╚████║███████╗
+╚═════╝      ╚═════╝ ╚═╝  ╚═══╝╚══════╝ v1.0
+\033[1;34m╠═════════════════════════════════════════════════════════════════|
+\033[1;32m║➢ Author       :Cyraxmod D One                                   
+\033[1;36m║➢ Acleda       :0884152630                  
+\033[1;31m║➣ Link Group   :https://t.me/ShareToolBuffViewTikTok      
+\033[1;33m║➣ Buy Tool VIP :https://t.me/DeveloperTiktok016                    
+\033[1;34m╚═════════════════════════════════════════════════════════════════|
+          ''')
+t=(Colorate.Horizontal(Colors.white_to_black,"- - - - - - - - - - - - - - - - - - - - - - - - -"))
+print(t)
+def clear():
+    if(sys.platform.startswith('win')):
+        os.system('cls')
     else:
-        preview = f"{first_name} 󱢏 {last_name}"
-    
-    print(f"\n[*] Preview: {preview}")
-    confirm = input("\n[?] Proceed? (yes/no): ").strip().lower()
-    
-    if confirm not in ['yes', 'y']:
-        print("\n[*] Cancelled")
-        sys.exit(0)
-    
-    # Attempt change
-    print("\n[*] Attempting to change name with badge...")
-    print("[*] Trying multiple methods...\n")
-    
-    success, message, new_name = changer.change_name_direct(first_name, last_name, badge_pos)
-    
-    if success:
-        print(f"\n[+] SUCCESS! {message}")
-        print(f"[+] New Name: {new_name}")
-        print("\n[*] Please check your Facebook profile to verify!")
-    else:
-        print(f"\n[-] FAILED: {message}")
-        print("\n[!] Why this happens:")
-        print("    • Facebook filters special Unicode characters server-side")
-        print("    • The API accepts requests but removes badges automatically")
-        print("    • Facebook detects and blocks fake verification badges")
-        print("    • This is a security measure to prevent impersonation")
-        print("\n[!] Alternative solutions:")
-        print("    • Use Facebook's mobile app to change name manually")
-        print("    • Some users report success by copying badge from verified profiles")
-        print("    • Try changing name through Facebook web (not guaranteed)")
-        print("    • Use regular emojis instead (⭐👑💎 etc.)")
-        
-        # Check if name was changed at all
-        print("\n[*] Verifying if any changes were made...")
-        success, result = changer.get_current_info()
-        if success:
-            new_current = result.get('name', '')
-            if new_current != f"{result.get('first_name', '')} {result.get('last_name', '')}":
-                print(f"[*] Current Name: {new_current}")
-                if "󱢏" not in new_current:
-                    print("[!] Name changed but badge was filtered by Facebook")
+        os.system('clear')
+gome_token = []
+def get_token(input_file):
+    for cookie in input_file:
+        header_ = {
+            'authority': 'business.facebook.com',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-language': 'vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5',
+            'cache-control': 'max-age=0',
+            'cookie': cookie,
+            'referer': 'https://www.facebook.com/',
+            'sec-ch-ua': '".Not/A)Brand";v="99", "Google Chrome";v="103", "Chromium";v="103"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Linux"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-user': '?1',
+            'upgrade-insecure-requests': '1',
 
-if __name__ == "__main__":
+        }
+        try:
+            home_business = requests.get('https://business.facebook.com/content_management', headers=header_).text
+            token = home_business.split('EAAG')[1].split('","')[0]
+            cookie_token = f'{cookie}|EAAG{token}'
+            gome_token.append(cookie_token)
+        except:
+            pass
+    return gome_token
+
+def share(tach, id_share):
+    cookie = tach.split('|')[0]
+    token = tach.split('|')[1]
+    he = {
+        'accept': '*/*',
+        'accept-encoding': 'gzip, deflate',
+        'connection': 'keep-alive',
+        'content-length': '0',
+        'cookie': cookie,
+        'host': 'graph.facebook.com'
+    }
     try:
-        main()
+        res = requests.post(f'https://graph.facebook.com/me/feed?link=https://m.facebook.com/{id_share}&published=0&access_token={token}', headers=he).json()
+    except:
+        pass
+    
+    
+def main_share():
+    clear()
+    banner()
+    input_file = open(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")).read().split('\n')
+    id_share = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mLink ID Can Share: \033[1;35m")
+    delay = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mDelay Share: \033[1;35m"))
+    total_share = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mNumber of Share Bot: \033[1;35m"))
+    all = get_token(input_file)
+    total_live = len(all)
+    print(f'\033[1;31m────────────────────────────────────────────────────────────')
+    if total_live == 0:
+        sys.exit()
+    stt = 0
+    while True:
+        for tach in all:
+            stt = stt + 1
+            threa = threading.Thread(target=share, args=(tach, id_share))
+            threa.start()
+            print(f'\033[1;91m[\033[1;33m{stt}\033[1;91m]\033[1;31m ❥ \033[1;95mSHARE\033[1;31m ❥\033[1;36m Success\033[1;31m ❥ ID ❥\033[1;31m\033[1;93m {id_share} \033[1;31m❥ \n', end='\r')
+            time.sleep(delay)
+        if stt == total_share:
+            break
+    gome_token.clear()
+    input('\033[38;5;245m[\033[1;32mSUCCESS\033[38;5;245m] \033[1;32mBot Share Complete |  Press [Enter] to run again \033[0m\033[0m')
+while True:
+    try:
+        main_share()
     except KeyboardInterrupt:
-        print("\n\n[*] Interrupted")
-        sys.exit(0)
-    except Exception as e:
-        print(f"\n[-] Error: {e}")
-        sys.exit(1)
+        print('\n\033[38;5;245m[\033[38;5;9m!\033[38;5;245m] \033[38;5;9mDo not forget to Join Group Channel ^^\033[0m')
+        sys.exit()
