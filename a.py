@@ -89,7 +89,37 @@ def main_share():
     
     # Get cookie file with error handling
     while True:
-        cookie_file = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")
+        cookie_file = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m").strip()
+        
+        # Auto-detect if user just typed filename without path
+        if not '/' in cookie_file:
+            # Try common Termux storage locations
+            possible_paths = [
+                f'/storage/emulated/0/{cookie_file}',
+                f'/sdcard/{cookie_file}',
+                f'/data/data/com.termux/files/home/{cookie_file}',
+                cookie_file
+            ]
+            
+            found = False
+            for path in possible_paths:
+                if os.path.exists(path):
+                    cookie_file = path
+                    found = True
+                    print(f"\033[1;32m[FOUND] Using file: {cookie_file}\033[0m")
+                    break
+            
+            if not found:
+                print(f"\033[1;31m[ERROR] File '{cookie_file}' not found in any location!\033[0m")
+                print(f"\033[1;33m[SEARCHED IN]:\033[0m")
+                for path in possible_paths:
+                    print(f"  • {path}")
+                retry = input("\033[1;36mTry again? (y/n): \033[0m").lower()
+                if retry != 'y':
+                    sys.exit()
+                continue
+        
+        # Check if full path exists
         if os.path.exists(cookie_file):
             try:
                 with open(cookie_file, 'r') as f:
@@ -98,9 +128,12 @@ def main_share():
                 break
             except Exception as e:
                 print(f"\033[1;31m[ERROR] Cannot read file: {e}\033[0m")
+                retry = input("\033[1;36mTry again? (y/n): \033[0m").lower()
+                if retry != 'y':
+                    sys.exit()
         else:
-            print(f"\033[1;31m[ERROR] File '{cookie_file}' not found! Please check the file path.\033[0m")
-            print(f"\033[1;33m[INFO] Current directory: {os.getcwd()}\033[0m")
+            print(f"\033[1;31m[ERROR] File '{cookie_file}' not found!\033[0m")
+            print(f"\033[1;33m[TIP] Use full path like: /storage/emulated/0/cookies.txt\033[0m")
             retry = input("\033[1;36mTry again? (y/n): \033[0m").lower()
             if retry != 'y':
                 sys.exit()
