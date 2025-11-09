@@ -52,30 +52,45 @@ class FBNameChanger:
             
             if response.status_code == 200:
                 result = response.json()
-                if result.get('success', False) or result == True:
-                    return True, "Name changed successfully!", f"{first_name} {new_last_name}"
-                else:
-                    return False, "Request completed but success status uncertain", None
-            else:
-                error = response.json()
-                error_msg = error.get('error', {}).get('message', 'Unknown error')
-                error_code = error.get('error', {}).get('code', 'N/A')
-                error_type = error.get('error', {}).get('type', 'Unknown')
                 
-                # Detailed error messages
-                if error_code == 190:
-                    return False, "Invalid or expired access token. Please get a new token.", None
-                elif error_code == 100:
-                    return False, "Invalid parameter. The name may violate Facebook's policies.", None
-                elif "OAuthException" in error_type:
-                    return False, f"Authentication error: {error_msg}", None
+                # Handle both dict and bool responses
+                if isinstance(result, bool):
+                    if result == True:
+                        return True, "Name changed successfully!", f"{first_name} {new_last_name}"
+                    else:
+                        return False, "Request returned false", None
+                elif isinstance(result, dict):
+                    if result.get('success', False) == True:
+                        return True, "Name changed successfully!", f"{first_name} {new_last_name}"
+                    else:
+                        return False, "Request completed but success status uncertain", None
                 else:
-                    return False, f"Error {error_code}: {error_msg}", None
+                    return True, "Name change request sent successfully!", f"{first_name} {new_last_name}"
+            else:
+                try:
+                    error = response.json()
+                    error_msg = error.get('error', {}).get('message', 'Unknown error')
+                    error_code = error.get('error', {}).get('code', 'N/A')
+                    error_type = error.get('error', {}).get('type', 'Unknown')
+                    
+                    # Detailed error messages
+                    if error_code == 190:
+                        return False, "Invalid or expired access token. Please get a new token.", None
+                    elif error_code == 100:
+                        return False, "Invalid parameter. The name may violate Facebook's policies.", None
+                    elif "OAuthException" in str(error_type):
+                        return False, f"Authentication error: {error_msg}", None
+                    else:
+                        return False, f"Error {error_code}: {error_msg}", None
+                except:
+                    return False, f"HTTP Error {response.status_code}: {response.text[:200]}", None
                     
         except requests.exceptions.Timeout:
             return False, "Request timeout. Please try again.", None
         except requests.exceptions.ConnectionError:
             return False, "Connection error. Check your internet connection.", None
+        except json.JSONDecodeError:
+            return False, "Invalid response from Facebook. The request may have succeeded - check your profile.", None
         except Exception as e:
             return False, f"Unexpected error: {str(e)}", None
 
