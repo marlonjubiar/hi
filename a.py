@@ -3,15 +3,16 @@ import os
 os.system('clear')
 import requests
 import threading
-import time
-import json,requests,time
+import json
 from time import strftime
 from pystyle import Colorate, Colors, Write, Add, Center
+
 __ZALO__ = 'https://zalo.me/g/apmxom704'
 __ADMIN__ = 'D One'
 __SHOP__ = 't.me/DeveloperTiktok016'
 __VERSION__ = '1.0'
 __NHV__ = '\033[1;91m[\033[1;92m●\033[1;91m]\033[1;97m ➻❥'  
+
 def banner():
     print(f''' 
 \033[1;34m╔═════════════════════════════════════════════════════════════════|               
@@ -28,14 +29,17 @@ def banner():
 \033[1;33m║➣ Buy Tool VIP :https://t.me/DeveloperTiktok016                    
 \033[1;34m╚═════════════════════════════════════════════════════════════════|
           ''')
-t=(Colorate.Horizontal(Colors.white_to_black,"- - - - - - - - - - - - - - - - - - - - - - - - -"))
-print(t)
+    t = Colorate.Horizontal(Colors.white_to_black, "- - - - - - - - - - - - - - - - - - - - - - - - -")
+    print(t)
+
 def clear():
-    if(sys.platform.startswith('win')):
+    if sys.platform.startswith('win'):
         os.system('cls')
     else:
         os.system('clear')
+
 gome_token = []
+
 def get_token(input_file):
     for cookie in input_file:
         header_ = {
@@ -53,7 +57,6 @@ def get_token(input_file):
             'sec-fetch-site': 'same-origin',
             'sec-fetch-user': '?1',
             'upgrade-insecure-requests': '1',
-
         }
         try:
             home_business = requests.get('https://business.facebook.com/content_management', headers=header_).text
@@ -80,48 +83,11 @@ def share(tach, id_share):
     except:
         pass
     
-    
 def main_share():
     clear()
     banner()
-    file_path = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")
-    
-    # Handle relative and absolute paths
-    if not file_path.startswith('/'):
-        # If it's a relative path, try common locations
-        possible_paths = [
-            file_path,  # Current directory
-            f'/storage/emulated/0/{file_path}',  # Android external storage
-            os.path.join(os.path.expanduser('~'), file_path)  # Home directory
-        ]
-        
-        file_found = False
-        for path in possible_paths:
-            if os.path.exists(path):
-                file_path = path
-                file_found = True
-                break
-        
-        if not file_found:
-            print(f'\033[1;31m[ERROR] File not found. Tried:')
-            for path in possible_paths:
-                print(f'  - {path}')
-            sys.exit()
-    else:
-        # Check if absolute path exists
-        if not os.path.exists(file_path):
-            print(f'\033[1;31m[ERROR] File not found: {file_path}')
-            sys.exit()
-    
-    try:
-        with open(file_path, 'r') as f:
-            input_file = f.read().split('\n')
-    except Exception as e:
-        print(f'\033[1;31m[ERROR] Cannot read file: {e}')
-        sys.exit()
-    
+    input_file = open(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")).read().split('\n')
     id_share = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mLink ID Can Share: \033[1;35m")
-    delay = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mDelay Share: \033[1;35m"))
     total_share = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mNumber of Share Bot: \033[1;35m"))
     all = get_token(input_file)
     total_live = len(all)
@@ -135,11 +101,11 @@ def main_share():
             threa = threading.Thread(target=share, args=(tach, id_share))
             threa.start()
             print(f'\033[1;91m[\033[1;33m{stt}\033[1;91m]\033[1;31m ❥ \033[1;95mSHARE\033[1;31m ❥\033[1;36m Success\033[1;31m ❥ ID ❥\033[1;31m\033[1;93m {id_share} \033[1;31m❥ \n', end='\r')
-            time.sleep(delay)
         if stt == total_share:
             break
     gome_token.clear()
     input('\033[38;5;245m[\033[1;32mSUCCESS\033[38;5;245m] \033[1;32mBot Share Complete |  Press [Enter] to run again \033[0m\033[0m')
+
 while True:
     try:
         main_share()
