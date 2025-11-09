@@ -84,7 +84,42 @@ def share(tach, id_share):
 def main_share():
     clear()
     banner()
-    input_file = open(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")).read().split('\n')
+    file_path = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")
+    
+    # Handle relative and absolute paths
+    if not file_path.startswith('/'):
+        # If it's a relative path, try common locations
+        possible_paths = [
+            file_path,  # Current directory
+            f'/storage/emulated/0/{file_path}',  # Android external storage
+            os.path.join(os.path.expanduser('~'), file_path)  # Home directory
+        ]
+        
+        file_found = False
+        for path in possible_paths:
+            if os.path.exists(path):
+                file_path = path
+                file_found = True
+                break
+        
+        if not file_found:
+            print(f'\033[1;31m[ERROR] File not found. Tried:')
+            for path in possible_paths:
+                print(f'  - {path}')
+            sys.exit()
+    else:
+        # Check if absolute path exists
+        if not os.path.exists(file_path):
+            print(f'\033[1;31m[ERROR] File not found: {file_path}')
+            sys.exit()
+    
+    try:
+        with open(file_path, 'r') as f:
+            input_file = f.read().split('\n')
+    except Exception as e:
+        print(f'\033[1;31m[ERROR] Cannot read file: {e}')
+        sys.exit()
+    
     id_share = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mLink ID Can Share: \033[1;35m")
     delay = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mDelay Share: \033[1;35m"))
     total_share = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mNumber of Share Bot: \033[1;35m"))
