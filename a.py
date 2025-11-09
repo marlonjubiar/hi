@@ -86,13 +86,36 @@ def share(tach, id_share):
 def main_share():
     clear()
     banner()
-    input_file = open(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")).read().split('\n')
+    
+    # Get cookie file with error handling
+    while True:
+        cookie_file = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mName File Cookies: \033[1;35m")
+        if os.path.exists(cookie_file):
+            try:
+                with open(cookie_file, 'r') as f:
+                    input_file = f.read().strip().split('\n')
+                    input_file = [cookie.strip() for cookie in input_file if cookie.strip()]
+                break
+            except Exception as e:
+                print(f"\033[1;31m[ERROR] Cannot read file: {e}\033[0m")
+        else:
+            print(f"\033[1;31m[ERROR] File '{cookie_file}' not found! Please check the file path.\033[0m")
+            print(f"\033[1;33m[INFO] Current directory: {os.getcwd()}\033[0m")
+            retry = input("\033[1;36mTry again? (y/n): \033[0m").lower()
+            if retry != 'y':
+                sys.exit()
+    
     id_share = input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mLink ID Can Share: \033[1;35m")
     total_share = int(input("\033[1;31m[\033[1;37m=.=\033[1;31m] \033[1;37m=> \033[1m\033[38;5;51mNumber of Share Bot: \033[1;35m"))
+    
+    print(f'\033[1;33m[INFO] Processing {len(input_file)} cookies...\033[0m')
     all = get_token(input_file)
     total_live = len(all)
     print(f'\033[1;31m────────────────────────────────────────────────────────────')
+    print(f'\033[1;32m[SUCCESS] Found {total_live} valid tokens!\033[0m')
+    
     if total_live == 0:
+        print(f'\033[1;31m[ERROR] No valid tokens found! Check your cookies.\033[0m')
         sys.exit()
     stt = 0
     while True:
