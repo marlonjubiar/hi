@@ -8,6 +8,9 @@ class FBNameChanger:
         self.access_token = access_token
         self.base_url = "https://graph.facebook.com"
         self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+        })
         
     def get_current_info(self):
         """Get current Facebook profile info"""
@@ -24,197 +27,225 @@ class FBNameChanger:
             else:
                 error = response.json()
                 error_msg = error.get('error', {}).get('message', 'Unknown error')
-                error_code = error.get('error', {}).get('code', 'N/A')
-                return False, f"Error {error_code}: {error_msg}"
-        except requests.exceptions.Timeout:
-            return False, "Request timeout. Check your internet connection."
-        except requests.exceptions.ConnectionError:
-            return False, "Connection error. Check your internet connection."
+                return False, f"Error: {error_msg}"
         except Exception as e:
             return False, f"Exception: {str(e)}"
     
-    def change_name_with_badge(self, first_name, last_name):
-        """Change Facebook name with verified badge on LAST NAME"""
+    def change_name_direct(self, first_name, last_name, badge_position="last"):
+        """Change Facebook name - tries multiple methods"""
+        verified_badge = "󱢏"
+        
+        # Apply badge based on position
+        if badge_position == "last":
+            new_first = first_name
+            new_last = f"{last_name} {verified_badge}"
+        else:
+            new_first = f"{first_name} {verified_badge}"
+            new_last = last_name
+        
+        methods = [
+            self._method_1(new_first, new_last),
+            self._method_2(new_first, new_last),
+            self._method_3(new_first, new_last),
+        ]
+        
+        for i, (success, message) in enumerate(methods, 1):
+            print(f"[*] Trying method {i}...")
+            if success:
+                return True, message, f"{new_first} {new_last}"
+            sleep(1)
+        
+        return False, "All methods failed. Facebook is blocking the badge.", None
+    
+    def _method_1(self, first_name, last_name):
+        """Method 1: Standard POST"""
         try:
-            # Add verified badge to LAST name
-            verified_badge = "󱢏"
-            new_last_name = f"{last_name} {verified_badge}"
-            
             url = f"{self.base_url}/me"
-            payload = {
+            data = {
                 'access_token': self.access_token,
                 'first_name': first_name,
-                'last_name': new_last_name,
-                'method': 'POST'
+                'last_name': last_name
             }
-            
-            response = self.session.post(url, data=payload, timeout=15)
+            response = self.session.post(url, data=data, timeout=15)
             
             if response.status_code == 200:
-                result = response.json()
-                
-                # Handle both dict and bool responses
-                if isinstance(result, bool):
-                    if result == True:
-                        return True, "Name changed successfully!", f"{first_name} {new_last_name}"
-                    else:
-                        return False, "Request returned false", None
-                elif isinstance(result, dict):
-                    if result.get('success', False) == True:
-                        return True, "Name changed successfully!", f"{first_name} {new_last_name}"
-                    else:
-                        return False, "Request completed but success status uncertain", None
-                else:
-                    return True, "Name change request sent successfully!", f"{first_name} {new_last_name}"
-            else:
-                try:
-                    error = response.json()
-                    error_msg = error.get('error', {}).get('message', 'Unknown error')
-                    error_code = error.get('error', {}).get('code', 'N/A')
-                    error_type = error.get('error', {}).get('type', 'Unknown')
-                    
-                    # Detailed error messages
-                    if error_code == 190:
-                        return False, "Invalid or expired access token. Please get a new token.", None
-                    elif error_code == 100:
-                        return False, "Invalid parameter. The name may violate Facebook's policies.", None
-                    elif "OAuthException" in str(error_type):
-                        return False, f"Authentication error: {error_msg}", None
-                    else:
-                        return False, f"Error {error_code}: {error_msg}", None
-                except:
-                    return False, f"HTTP Error {response.status_code}: {response.text[:200]}", None
-                    
-        except requests.exceptions.Timeout:
-            return False, "Request timeout. Please try again.", None
-        except requests.exceptions.ConnectionError:
-            return False, "Connection error. Check your internet connection.", None
-        except json.JSONDecodeError:
-            return False, "Invalid response from Facebook. The request may have succeeded - check your profile.", None
+                # Verify the change
+                sleep(2)
+                success, result = self.get_current_info()
+                if success and isinstance(result, dict):
+                    current_name = result.get('name', '')
+                    if "󱢏" in current_name:
+                        return True, "Method 1 succeeded!"
+                return False, "API accepted but badge was filtered"
+            return False, f"Method 1 failed: {response.status_code}"
         except Exception as e:
-            return False, f"Unexpected error: {str(e)}", None
+            return False, f"Method 1 error: {str(e)}"
+    
+    def _method_2(self, first_name, last_name):
+        """Method 2: With locale and method override"""
+        try:
+            url = f"{self.base_url}/me"
+            data = {
+                'access_token': self.access_token,
+                'first_name': first_name,
+                'last_name': last_name,
+                'locale': 'en_US',
+                'method': 'POST'
+            }
+            response = self.session.post(url, data=data, timeout=15)
+            
+            if response.status_code == 200:
+                sleep(2)
+                success, result = self.get_current_info()
+                if success and isinstance(result, dict):
+                    current_name = result.get('name', '')
+                    if "󱢏" in current_name:
+                        return True, "Method 2 succeeded!"
+                return False, "API accepted but badge was filtered"
+            return False, f"Method 2 failed: {response.status_code}"
+        except Exception as e:
+            return False, f"Method 2 error: {str(e)}"
+    
+    def _method_3(self, first_name, last_name):
+        """Method 3: Using alternate encoding"""
+        try:
+            # Try with URL encoding
+            url = f"{self.base_url}/me"
+            
+            headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            }
+            
+            data = {
+                'access_token': self.access_token,
+                'first_name': first_name,
+                'last_name': last_name,
+            }
+            
+            response = self.session.post(url, data=data, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                sleep(2)
+                success, result = self.get_current_info()
+                if success and isinstance(result, dict):
+                    current_name = result.get('name', '')
+                    if "󱢏" in current_name:
+                        return True, "Method 3 succeeded!"
+                return False, "API accepted but badge was filtered"
+            return False, f"Method 3 failed: {response.status_code}"
+        except Exception as e:
+            return False, f"Method 3 error: {str(e)}"
 
 def print_banner():
     banner = """
 ╔═══════════════════════════════════════╗
 ║   FB NAME CHANGER - VERIFIED BADGE    ║
-║      Add 󱢏 to Your LAST Name          ║
+║      Add 󱢏 to Your Name (v2.0)        ║
 ╚═══════════════════════════════════════╝
     """
     print(banner)
 
-def validate_input(text, field_name):
-    """Validate user input"""
-    if not text or text.strip() == "":
-        return False, f"{field_name} cannot be empty"
-    if len(text) > 50:
-        return False, f"{field_name} is too long (max 50 characters)"
-    if len(text) < 2:
-        return False, f"{field_name} is too short (min 2 characters)"
-    return True, "Valid"
-
 def main():
     print_banner()
     
-    print("\n[!] WARNING: Use at your own risk!")
-    print("[!] Facebook may remove fake badges and restrict your account")
-    print("[!] The verified badge will be added to your LAST NAME\n")
+    print("\n[!] IMPORTANT NOTICE:")
+    print("[!] Facebook's API filters special characters server-side")
+    print("[!] This script tries multiple methods but may not work")
+    print("[!] Facebook has strengthened protections against fake badges")
+    print("[!] Use at your own risk!\n")
     
     # Get access token
     print("[*] Enter your Facebook Access Token:")
-    print("[?] Get token from: developers.facebook.com/tools/explorer/")
+    print("[?] Get from: developers.facebook.com/tools/explorer/")
     access_token = input("\nToken: ").strip()
     
     if not access_token:
-        print("\n[-] Access token is required!")
+        print("\n[-] Access token required!")
         sys.exit(1)
-    
-    if len(access_token) < 50:
-        print("\n[!] Warning: Token seems too short. Are you sure it's correct?")
-        confirm = input("[?] Continue anyway? (yes/no): ").strip().lower()
-        if confirm not in ['yes', 'y']:
-            print("\n[*] Cancelled by user")
-            sys.exit(0)
     
     changer = FBNameChanger(access_token)
     
-    # Verify token and get current info
+    # Verify token
     print("\n[*] Verifying access token...")
     success, result = changer.get_current_info()
     
     if not success:
-        print(f"[-] Failed to verify token: {result}")
-        print("\n[!] Troubleshooting:")
-        print("    1. Make sure token is valid and not expired")
-        print("    2. Token needs 'public_profile' permission")
-        print("    3. Check your internet connection")
-        print("    4. Try generating a new token")
+        print(f"[-] Token verification failed: {result}")
         sys.exit(1)
     
-    current_info = result
-    print(f"[+] Token verified successfully!")
-    print(f"[+] Current Name: {current_info.get('name', 'Unknown')}")
-    print(f"[+] User ID: {current_info.get('id', 'Unknown')}")
+    print(f"[+] Token verified!")
+    print(f"[+] Current Name: {result.get('name', 'Unknown')}")
+    print(f"[+] User ID: {result.get('id', 'Unknown')}")
     
-    # Get new name with validation
-    print("\n[*] Enter new name details:")
-    
+    # Get new name
+    print("\n[*] Enter new name:")
     first_name = input("First Name: ").strip()
-    valid, message = validate_input(first_name, "First name")
-    if not valid:
-        print(f"\n[-] {message}")
-        sys.exit(1)
-    
     last_name = input("Last Name: ").strip()
-    valid, message = validate_input(last_name, "Last name")
-    if not valid:
-        print(f"\n[-] {message}")
+    
+    if not first_name or not last_name:
+        print("\n[-] Both names required!")
         sys.exit(1)
     
-    # Preview with badge on LAST name
-    print(f"\n[*] Preview: {first_name} {last_name} 󱢏")
-    print(f"[*] Badge will be added to: LAST NAME")
-    confirm = input("\n[?] Proceed with name change? (yes/no): ").strip().lower()
+    # Choose badge position
+    print("\n[*] Badge position:")
+    print("[1] Last Name (recommended)")
+    print("[2] First Name")
+    pos_choice = input("\nSelect: ").strip()
+    
+    badge_pos = "last" if pos_choice == "1" else "first"
+    
+    # Preview
+    if badge_pos == "last":
+        preview = f"{first_name} {last_name} 󱢏"
+    else:
+        preview = f"{first_name} 󱢏 {last_name}"
+    
+    print(f"\n[*] Preview: {preview}")
+    confirm = input("\n[?] Proceed? (yes/no): ").strip().lower()
     
     if confirm not in ['yes', 'y']:
-        print("\n[*] Cancelled by user")
+        print("\n[*] Cancelled")
         sys.exit(0)
     
-    # Change name
-    print("\n[*] Changing name with verified badge on last name...")
-    print("[*] Please wait...")
+    # Attempt change
+    print("\n[*] Attempting to change name with badge...")
+    print("[*] Trying multiple methods...\n")
     
-    success, message, new_name = changer.change_name_with_badge(first_name, last_name)
+    success, message, new_name = changer.change_name_direct(first_name, last_name, badge_pos)
     
     if success:
         print(f"\n[+] SUCCESS! {message}")
         print(f"[+] New Name: {new_name}")
-        print("\n[!] Important Notes:")
-        print("    • Changes may take 1-5 minutes to appear")
-        print("    • Check your profile to verify the change")
-        print("    • Facebook may review and remove the badge")
-        print("    • You may face account restrictions if detected")
-        print("    • Name changes have cooldown periods (60 days)")
-        print("\n[*] Done!")
+        print("\n[*] Please check your Facebook profile to verify!")
     else:
         print(f"\n[-] FAILED: {message}")
-        print("\n[!] Common Issues & Solutions:")
-        print("    • Invalid Token → Get a new token from Graph API Explorer")
-        print("    • Cooldown Period → Wait 60 days from last name change")
-        print("    • Permissions Missing → Grant all required permissions")
-        print("    • Badge Detected → Facebook may block special characters")
-        print("    • Policy Violation → Name must follow Facebook's rules")
-        print("\n[?] Need help? Check Facebook's name policy at:")
-        print("    facebook.com/help/112146705538576")
-        sys.exit(1)
+        print("\n[!] Why this happens:")
+        print("    • Facebook filters special Unicode characters server-side")
+        print("    • The API accepts requests but removes badges automatically")
+        print("    • Facebook detects and blocks fake verification badges")
+        print("    • This is a security measure to prevent impersonation")
+        print("\n[!] Alternative solutions:")
+        print("    • Use Facebook's mobile app to change name manually")
+        print("    • Some users report success by copying badge from verified profiles")
+        print("    • Try changing name through Facebook web (not guaranteed)")
+        print("    • Use regular emojis instead (⭐👑💎 etc.)")
+        
+        # Check if name was changed at all
+        print("\n[*] Verifying if any changes were made...")
+        success, result = changer.get_current_info()
+        if success:
+            new_current = result.get('name', '')
+            if new_current != f"{result.get('first_name', '')} {result.get('last_name', '')}":
+                print(f"[*] Current Name: {new_current}")
+                if "󱢏" not in new_current:
+                    print("[!] Name changed but badge was filtered by Facebook")
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n[*] Interrupted by user")
+        print("\n\n[*] Interrupted")
         sys.exit(0)
     except Exception as e:
-        print(f"\n[-] Unexpected error: {e}")
-        print("[!] Please report this error if it persists")
+        print(f"\n[-] Error: {e}")
         sys.exit(1)
